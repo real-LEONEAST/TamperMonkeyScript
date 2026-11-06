@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化（竖屏评论区分屏测试版）
 // @namespace    https://github.com/real-LEONEAST/TamperMonkeyScript/test
-// @version      2026.11.6
+// @version      2026.11.6.1
 // @author       WhiteSevs
 // @description  视频过滤，包括广告、直播或自定义规则，屏蔽登录弹窗、自定义视频清晰度、禁止自动播放、自动进入全屏、双击进入全屏、屏蔽弹幕和礼物特效、手机模式、自定义视频和评论区背景色等
 // @license      GPL-3.0-only
@@ -8430,6 +8430,7 @@
 	var portraitCommentSplit_default = "/* 仅在竖屏窗口、评论区打开且分屏功能启用时生效 */\n@media screen and (orientation: portrait) {\n  .dy-portrait-comment-split-active {\n    --dy-portrait-player-height: 40%;\n    --dy-portrait-comment-height: 60%;\n  }\n\n  .dy-portrait-comment-split-active .playerContainer {\n    width: 100% !important;\n    height: var(--dy-portrait-player-height) !important;\n    max-height: var(--dy-portrait-player-height) !important;\n    min-height: 0 !important;\n  }\n\n  .dy-portrait-comment-split-active .playerContainer .basePlayerContainer,\n  .dy-portrait-comment-split-active .playerContainer .xgplayer {\n    height: 100% !important;\n    max-height: 100% !important;\n    min-height: 0 !important;\n  }\n\n  .dy-portrait-comment-split-active .playerContainer video {\n    width: 100% !important;\n    height: 100% !important;\n    max-width: 100% !important;\n    max-height: 100% !important;\n    object-fit: contain !important;\n  }\n\n  .dy-portrait-comment-split-active #videoSideCard:has(#relatedVideoCard),\n  .dy-portrait-comment-split-active #videoSideBar:has(#relatedVideoCard) {\n    position: absolute !important;\n    width: 100% !important;\n    height: var(--dy-portrait-comment-height) !important;\n    max-height: var(--dy-portrait-comment-height) !important;\n    left: 0 !important;\n    right: 0 !important;\n    top: auto !important;\n    bottom: 0 !important;\n    min-height: 0 !important;\n  }\n}\n";
 	var ROOT_SELECTOR = "#sliderVideo[data-e2e=\"feed-active-video\"], #slideMode[data-e2e=\"feed-active-video\"]";
 	var SIDE_CARD_SELECTOR = "#videoSideCard, #videoSideBar";
+	var RELEVANT_SELECTOR = "#sliderVideo, #slideMode, #videoSideCard, #videoSideBar, #relatedVideoCard";
 	var ACTIVE_CLASS_NAME = "dy-portrait-comment-split-active";
 	var DouYinVideoPortraitCommentSplit = { init() {
 		log.info("启用竖屏评论区上下分屏");
@@ -8453,24 +8454,77 @@
 			const nextActiveRoots = new Set();
 			for (const $root of document.querySelectorAll(ROOT_SELECTOR)) {
 				const shouldSplit = isPortrait && getOpenedCommentPanel($root) != null;
-				$root.classList.toggle(ACTIVE_CLASS_NAME, shouldSplit);
+				if ($root.classList.contains(ACTIVE_CLASS_NAME) !== shouldSplit) $root.classList.toggle(ACTIVE_CLASS_NAME, shouldSplit);
 				if (shouldSplit) nextActiveRoots.add($root);
 			}
 			for (const $root of activeRoots) if (!nextActiveRoots.has($root)) $root.classList.remove(ACTIVE_CLASS_NAME);
 			activeRoots = nextActiveRoots;
 		};
+		let frameId = null;
+		let settleTimerId = null;
+		const scheduleUpdate = () => {
+			if (frameId === null) frameId = window.requestAnimationFrame(() => {
+				frameId = null;
+				update();
+			});
+			if (settleTimerId !== null) window.clearTimeout(settleTimerId);
+			settleTimerId = window.setTimeout(() => {
+				settleTimerId = null;
+				update();
+			}, 180);
+		};
+		const containsRelevantElement = (node) => {
+			if (node.nodeType !== 1) return false;
+			const $element = node;
+			return $element.matches(RELEVANT_SELECTOR) || $element.querySelector(RELEVANT_SELECTOR) != null;
+		};
+		const observer = new MutationObserver((mutations) => {
+			if (mutations.some((mutation) => {
+				const $target = mutation.target;
+				if (mutation.type === "attributes") return $target.matches(RELEVANT_SELECTOR);
+				if ($target.matches(RELEVANT_SELECTOR) || $target.closest(SIDE_CARD_SELECTOR)) return true;
+				return [...mutation.addedNodes, ...mutation.removedNodes].some(containsRelevantElement);
+			})) scheduleUpdate();
+		});
+		const startObserver = () => {
+			if (!document.documentElement) return;
+			observer.observe(document.documentElement, {
+				childList: true,
+				subtree: true,
+				attributes: true,
+				attributeFilter: [
+					"class",
+					"style",
+					"data-e2e",
+					"aria-hidden"
+				]
+			});
+			scheduleUpdate();
+		};
+		const onClick = (event) => {
+			const $target = event.target;
+			if ($target instanceof Element && $target.closest(RELEVANT_SELECTOR)) scheduleUpdate();
+		};
 		const onVisibilityChange = () => {
-			if (!document.hidden) update();
+			if (!document.hidden) scheduleUpdate();
 		};
 		update();
-		const intervalId = window.setInterval(update, 1e3);
-		window.addEventListener("resize", update, { passive: true });
-		window.addEventListener("pageshow", update, { passive: true });
+		const intervalId = window.setInterval(update, 3e3);
+		if (document.documentElement) startObserver();
+		else document.addEventListener("DOMContentLoaded", startObserver, { once: true });
+		document.addEventListener("click", onClick, true);
+		window.addEventListener("resize", scheduleUpdate, { passive: true });
+		window.addEventListener("pageshow", scheduleUpdate, { passive: true });
 		document.addEventListener("visibilitychange", onVisibilityChange);
 		return [$style, () => {
+			observer.disconnect();
+			document.removeEventListener("DOMContentLoaded", startObserver);
+			document.removeEventListener("click", onClick, true);
 			window.clearInterval(intervalId);
-			window.removeEventListener("resize", update);
-			window.removeEventListener("pageshow", update);
+			if (frameId !== null) window.cancelAnimationFrame(frameId);
+			if (settleTimerId !== null) window.clearTimeout(settleTimerId);
+			window.removeEventListener("resize", scheduleUpdate);
+			window.removeEventListener("pageshow", scheduleUpdate);
 			document.removeEventListener("visibilitychange", onVisibilityChange);
 			for (const $root of activeRoots) $root.classList.remove(ACTIVE_CLASS_NAME);
 			activeRoots.clear();
