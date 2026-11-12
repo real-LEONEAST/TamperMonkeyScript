@@ -12,11 +12,12 @@ const CHAPTER_SELECTOR = "#chapterVideoSideCard";
 const RELEVANT_SELECTOR =
   "#sliderVideo, #slideMode, #videoSideCard, #videoSideBar, #relatedVideoCard, #chapterVideoSideCard, #chapterVideoCard";
 const BOTTOM_CLASS = "dy-comment-layout-bottom";
+const COMMENT_CLASS = "dy-comment-panel-open";
 const CHAPTER_CLASS = "dy-chapter-layout-open";
 const PREWARM_CLASS = "dy-comment-layout-prewarming";
-const PREFER_BOTTOM_CLASS = "dy-video-layout-bottom";
 const LAYOUT_KEY = "dy-video-commentLayout";
 const SEARCH_PATH_PATTERN = /(?:^|\/)search(?:\/|$)/;
+type PanelKind = "chapter" | "comment";
 
 /**
  * 视频侧栏（评论/章节要点）自动/下方/右侧布局。搜索结果的内嵌视频保持原生右侧布局。
@@ -28,13 +29,15 @@ export const DouYinVideoPortraitCommentSplit = {
     log.info("启用视频评论区布局切换");
     const styles = [addStyle(splitCSS), addStyle(pickerCSS)];
     const pickers = new Map<HTMLElement, ReturnType<typeof createLayoutPicker>>();
-    const prewarmedRoots = new Set<HTMLElement>();
+    const prewarmedRoots = new Map<HTMLElement, PanelKind>();
+    const panelStates = new WeakMap<HTMLElement, { kind: PanelKind; lastSeen: number }>();
 
     const isOpenedPanel = ($panel: HTMLElement, $root: HTMLElement) => {
       const panelStyle = window.getComputedStyle($panel);
       if (panelStyle.display === "none" || panelStyle.visibility === "hidden" || Number(panelStyle.opacity) < 0.05) {
         return false;
       }
+      if ($panel.matches('[hidden], [aria-hidden="true"], [data-state="closed"]')) return false;
 
       const panelRect = $panel.getBoundingClientRect();
       const rootRect = $root.getBoundingClientRect();
@@ -43,20 +46,27 @@ export const DouYinVideoPortraitCommentSplit = {
       return panelRect.width >= 100 && panelRect.height >= 100 && rootRect.height >= 150 && visibleHeight >= 80 && visibleWidth >= 80;
     };
 
-    const getOpenedSidePanel = ($root: HTMLElement): "chapter" | "comment" | null => {
+    const getOpenedSidePanel = ($root: HTMLElement): PanelKind | null => {
       const $player = $root.querySelector<HTMLElement>(".playerContainer");
       if (!$player?.querySelector("video")) return null;
 
       const $chapter = $root.querySelector<HTMLElement>(CHAPTER_SELECTOR);
-      // 章节面板与评论面板可同时保留在 DOM 中；实际打开的章节面板优先显示。
-      if ($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root)) return "chapter";
+      const chapterOpen = !!($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root));
+      const commentOpen = [...$root.querySelectorAll<HTMLElement>(SIDE_CARD_SELECTOR)].some(
+        ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
+      );
+      const now = Date.now();
+      const previous = panelStates.get($root);
 
-      for (const $panel of $root.querySelectorAll<HTMLElement>(SIDE_CARD_SELECTOR)) {
-        if (!$panel.querySelector("#relatedVideoCard")) continue;
-        if (isOpenedPanel($panel, $root)) return "comment";
+      // 分屏和侧栏动画期间，几何位置可能短暂变化；防止章节/评论状态来回跳动。
+      if (previous && now - previous.lastSeen < 450 &&
+          !(previous.kind === "chapter" ? chapterOpen : commentOpen)) {
+        return previous.kind;
       }
-
-      return null;
+      const opened: PanelKind | null = chapterOpen ? "chapter" : commentOpen ? "comment" : null;
+      if (opened) panelStates.set($root, { kind: opened, lastSeen: now });
+      else panelStates.delete($root);
+      return opened;
     };
 
     const isInlineSearch = () =>
@@ -64,16 +74,12 @@ export const DouYinVideoPortraitCommentSplit = {
         document.querySelector("#search-body-container, #search-result-container") != null;
 
     const isUnsupportedPage = () => DouYinRouter.isLive() || isInlineSearch();
-    // 提前标记页面偏好，让独立章节侧栏首次挂载时直接使用下方布局。
-    const syncPreference = () => {
-      const bottom = !isUnsupportedPage() && resolveLayoutMode(getLayoutMode(LAYOUT_KEY)) === "bottom";
-      document.documentElement?.classList.toggle(PREFER_BOTTOM_CLASS, bottom);
-      return bottom;
-    };
+    const syncPreference = () => !isUnsupportedPage() && resolveLayoutMode(getLayoutMode(LAYOUT_KEY)) === "bottom";
     const clearPicker = ($root: HTMLElement) => {
-      $root.classList.remove(BOTTOM_CLASS, CHAPTER_CLASS);
+      $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS);
       pickers.get($root)?.destroy();
       pickers.delete($root);
+      panelStates.delete($root);
     };
 
     const update = () => {
@@ -82,14 +88,18 @@ export const DouYinVideoPortraitCommentSplit = {
       const nextActiveRoots = new Set<HTMLElement>();
 
       if (!bottom) {
-        for (const $root of prewarmedRoots) $root.classList.remove(BOTTOM_CLASS, PREWARM_CLASS);
+        for (const $root of prewarmedRoots.keys()) {
+          $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS);
+        }
         prewarmedRoots.clear();
+        navigating = false;
       }
 
       if (!skip) for (const $root of document.querySelectorAll<HTMLElement>(ROOT_SELECTOR)) {
         const openedPanel = getOpenedSidePanel($root);
         if (!openedPanel) continue;
         $root.classList.toggle(BOTTOM_CLASS, bottom);
+        $root.classList.toggle(COMMENT_CLASS, bottom && openedPanel === "comment");
         $root.classList.toggle(CHAPTER_CLASS, bottom && openedPanel === "chapter");
         let picker = pickers.get($root);
         if (!picker?.element.isConnected) {
@@ -109,7 +119,9 @@ export const DouYinVideoPortraitCommentSplit = {
 
     let frameId: number | null = null;
     let settleTimerId: number | null = null;
+    let closeTimerId: number | null = null;
     let prewarmTimerId: number | null = null;
+    let navigating = false;
     let observerSuspended = false;
     const scheduleUpdate = () => {
       syncPreference();
@@ -125,6 +137,12 @@ export const DouYinVideoPortraitCommentSplit = {
         settleTimerId = null;
         update();
       }, 180);
+      // 动画结束和短暂的状态保持期之后再检查，确保点击关闭能恢复播放器布局。
+      if (closeTimerId !== null) window.clearTimeout(closeTimerId);
+      closeTimerId = window.setTimeout(() => {
+        closeTimerId = null;
+        update();
+      }, 900);
     };
 
     const containsRelevantElement = (node: Node) => {
@@ -151,9 +169,9 @@ export const DouYinVideoPortraitCommentSplit = {
       });
       if (hasRelevantChange) {
         // 滚动期间如果抖音才创建下一视频，也在首次绘制前预热它。
-        if (prewarmTimerId !== null) {
+        if (prewarmTimerId !== null && navigating) {
           for (const $root of document.querySelectorAll<HTMLElement>(FEED_ROOT_SELECTOR)) {
-            if (!prewarmedRoots.has($root)) addPrewarmRoot($root);
+            if (!prewarmedRoots.has($root)) addPrewarmRoot($root, "comment");
           }
         }
         scheduleUpdate();
@@ -170,17 +188,20 @@ export const DouYinVideoPortraitCommentSplit = {
       observerSuspended = false;
       scheduleUpdate();
     };
-    const addPrewarmRoot = ($root: HTMLElement) => {
+    const addPrewarmRoot = ($root: HTMLElement, kind: PanelKind) => {
       $root.classList.add(BOTTOM_CLASS, PREWARM_CLASS);
-      prewarmedRoots.add($root);
+      $root.classList.toggle(COMMENT_CLASS, kind === "comment");
+      $root.classList.toggle(CHAPTER_CLASS, kind === "chapter");
+      prewarmedRoots.set($root, kind);
     };
     const settlePrewarm = () => {
       if (prewarmTimerId !== null) window.clearTimeout(prewarmTimerId);
       prewarmTimerId = window.setTimeout(() => {
         prewarmTimerId = null;
-        for (const $root of prewarmedRoots) {
+        navigating = false;
+        for (const $root of prewarmedRoots.keys()) {
           $root.classList.remove(PREWARM_CLASS);
-          if (!pickers.has($root)) $root.classList.remove(BOTTOM_CLASS);
+          if (!pickers.has($root)) $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS);
         }
         prewarmedRoots.clear();
         scheduleUpdate();
@@ -189,11 +210,16 @@ export const DouYinVideoPortraitCommentSplit = {
     const onClick = (event: MouseEvent) => {
       const $target = event.target;
       if (!($target instanceof Element)) return;
-      // 点击评论按钮时在抖音挂载侧栏之前就进入分屏，不等动画或观察器。
-      if (syncPreference() && $target.closest('[data-e2e="feed-comment-icon"]')) {
-        const $root = $target.closest<HTMLElement>(FEED_ROOT_SELECTOR);
-        if ($root) {
-          addPrewarmRoot($root);
+      const $root = $target.closest<HTMLElement>(FEED_ROOT_SELECTOR);
+      if (syncPreference() && $root) {
+        const kind: PanelKind | null = $target.closest('[data-e2e="chapter-container"]')
+          ? "chapter"
+          : $target.closest('[data-e2e="feed-comment-icon"]') ? "comment" : null;
+        // 在原生点击处理前确定目标侧栏，避免首次打开章节时误拉出隐藏的评论区。
+        if (kind && getOpenedSidePanel($root) !== kind) {
+          navigating = false;
+          panelStates.set($root, { kind, lastSeen: Date.now() });
+          addPrewarmRoot($root, kind);
           settlePrewarm();
         }
       }
@@ -202,13 +228,14 @@ export const DouYinVideoPortraitCommentSplit = {
     const prewarmNextVideo = () => {
       if (!syncPreference()) return;
       const $active = document.querySelector<HTMLElement>(ROOT_SELECTOR);
-      if (!$active || !getOpenedSidePanel($active)) return;
+      if (!$active || getOpenedSidePanel($active) !== "comment") return;
+      navigating = true;
 
       // 抖音会先挂载下一视频的右侧卡片，随后才把 feed-video 改成 feed-active-video。
       // 滚动事件在切换前触发，把分屏样式预先给已预加载的相邻视频。
       for (const $root of document.querySelectorAll<HTMLElement>(FEED_ROOT_SELECTOR)) {
         if ($root === $active) continue;
-        addPrewarmRoot($root);
+        addPrewarmRoot($root, "comment");
       }
       settlePrewarm();
     };
@@ -261,15 +288,17 @@ export const DouYinVideoPortraitCommentSplit = {
         window.clearInterval(intervalId);
         if (frameId !== null) window.cancelAnimationFrame(frameId);
         if (settleTimerId !== null) window.clearTimeout(settleTimerId);
+        if (closeTimerId !== null) window.clearTimeout(closeTimerId);
         if (prewarmTimerId !== null) window.clearTimeout(prewarmTimerId);
         window.removeEventListener("resize", scheduleUpdate);
         window.removeEventListener("pageshow", scheduleUpdate);
         document.removeEventListener("visibilitychange", onVisibilityChange);
         Panel.removeValueChangeListener(modeListenerId);
         for (const $root of pickers.keys()) clearPicker($root);
-        for (const $root of prewarmedRoots) $root.classList.remove(BOTTOM_CLASS, PREWARM_CLASS);
+        for (const $root of prewarmedRoots.keys()) {
+          $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS);
+        }
         prewarmedRoots.clear();
-        document.documentElement?.classList.remove(PREFER_BOTTOM_CLASS);
       },
     ];
   },

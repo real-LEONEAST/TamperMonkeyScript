@@ -1,5 +1,4 @@
-/* 页面级偏好让新挂载的章节面板直接出现在下方，无需等待 JS 判断可见性。 */
-html.dy-video-layout-bottom :is(#sliderVideo, #slideMode),
+/* 只调整当前展开的侧栏，避免章节要点激活时把隐藏的评论面板也拉出来。 */
 .dy-comment-layout-bottom {
   --dy-comment-player-height: 40%;
   --dy-comment-panel-height: 60%;
@@ -27,7 +26,7 @@ html.dy-video-layout-bottom :is(#sliderVideo, #slideMode),
   object-fit: contain !important;
 }
 
-.dy-comment-layout-bottom :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
+.dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
   position: absolute !important;
   width: 100% !important;
   height: var(--dy-comment-panel-height) !important;
@@ -41,21 +40,23 @@ html.dy-video-layout-bottom :is(#sliderVideo, #slideMode),
 }
 
 /* 仅在新侧栏挂载期取消宽度过渡；之后仍能按原生方式关闭。 */
-.dy-comment-layout-prewarming :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
+.dy-comment-layout-prewarming.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
   transition: none !important;
 }
 
-:is(.dy-chapter-layout-open, html.dy-video-layout-bottom :is(#sliderVideo, #slideMode)) #chapterVideoSideCard {
+.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {
   position: absolute !important;
   width: 100% !important;
   height: var(--dy-comment-panel-height) !important;
   max-height: var(--dy-comment-panel-height) !important;
   min-height: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   top: auto !important;
   bottom: 0 !important;
   background-color: rgba(0, 0, 0, 0.9);
   z-index: 3 !important;
-  /* 保留原生 left、transform 和关闭动画。 */
+  /* 保留原生 transform 和关闭动画。 */
 }
 
 .dy-comment-layout-bottom > .dy-layout-picker {
