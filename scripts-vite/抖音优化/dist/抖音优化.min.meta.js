@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.13.4
+// @version      2026.11.13.5
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
