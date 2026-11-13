@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.13.3
+// @version      2026.11.13.4
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -6225,7 +6225,9 @@ div:has(> a[download*="douyin-downloade"]):has(+.userMenuPanelShadowAnimation),\
   bottom: 0 !important;\r
   background-color: rgba(0, 0, 0, 0.9);\r
   z-index: 3 !important;\r
-  /* 保留原生 transform 和关闭动画。 */\r
+  /* 原生章节面板在右侧打开时通过 translateX(-100%) 移入视口；\r
+     下方布局已经将其定位到 left: 0，必须取消该位移，否则会整块滑出左边界。 */\r
+  transform: none !important;\r
 }\r
 \r
 .dy-comment-layout-bottom > .dy-layout-picker {\r
