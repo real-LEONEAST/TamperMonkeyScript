@@ -15,6 +15,9 @@ const BOTTOM_CLASS = "dy-comment-layout-bottom";
 const COMMENT_CLASS = "dy-comment-panel-open";
 const CHAPTER_CLASS = "dy-chapter-layout-open";
 const PREWARM_CLASS = "dy-comment-layout-prewarming";
+const MEASURING_CLASS = "dy-comment-layout-measuring";
+const LAYOUT_CLASSES = [BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS];
+const LAYOUT_CLASS_SET = new Set(LAYOUT_CLASSES.concat(MEASURING_CLASS));
 const LAYOUT_KEY = "dy-video-commentLayout";
 const SEARCH_PATH_PATTERN = /(?:^|\/)search(?:\/|$)/;
 type PanelKind = "chapter" | "comment";
@@ -30,7 +33,13 @@ export const DouYinVideoPortraitCommentSplit = {
     const styles = [addStyle(splitCSS), addStyle(pickerCSS)];
     const pickers = new Map<HTMLElement, ReturnType<typeof createLayoutPicker>>();
     const prewarmedRoots = new Map<HTMLElement, PanelKind>();
-    const panelStates = new WeakMap<HTMLElement, { kind: PanelKind; lastSeen: number }>();
+
+    // 忽略测量及布局调整自身产生的 class 变更，仍监听抖音对原生 class 的修改。
+    const nativeClassNames = (classes: string) =>
+      classes
+        .split(/\s+/)
+        .filter((name) => name && !LAYOUT_CLASS_SET.has(name))
+        .join(" ");
 
     const isOpenedPanel = ($panel: HTMLElement, $root: HTMLElement) => {
       const panelStyle = window.getComputedStyle($panel);
@@ -43,43 +52,48 @@ export const DouYinVideoPortraitCommentSplit = {
       const rootRect = $root.getBoundingClientRect();
       const visibleHeight = Math.min(panelRect.bottom, rootRect.bottom) - Math.max(panelRect.top, rootRect.top);
       const visibleWidth = Math.min(panelRect.right, rootRect.right) - Math.max(panelRect.left, rootRect.left);
-      return panelRect.width >= 100 && panelRect.height >= 100 && rootRect.height >= 150 && visibleHeight >= 80 && visibleWidth >= 80;
+      return (
+        panelRect.width >= 100 &&
+        panelRect.height >= 100 &&
+        rootRect.height >= 150 &&
+        visibleHeight >= 80 &&
+        visibleWidth >= 80
+      );
     };
 
     const getOpenedSidePanel = ($root: HTMLElement): PanelKind | null => {
       const $player = $root.querySelector<HTMLElement>(".playerContainer");
       if (!$player?.querySelector("video")) return null;
 
-      const $chapter = $root.querySelector<HTMLElement>(CHAPTER_SELECTOR);
-      const chapterOpen = !!($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root));
-      const commentOpen = [...$root.querySelectorAll<HTMLElement>(SIDE_CARD_SELECTOR)].some(
-        ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
-      );
-      const now = Date.now();
-      const previous = panelStates.get($root);
-
-      // 分屏和侧栏动画期间，几何位置可能短暂变化；防止章节/评论状态来回跳动。
-      if (previous && now - previous.lastSeen < 450 &&
-          !(previous.kind === "chapter" ? chapterOpen : commentOpen)) {
-        return previous.kind;
+      // 侧栏一旦被 CSS 撑满，直接读宽度就会把“已关闭”误判为“已打开”。
+      // 侧栏宽度与播放器的原生布局相关，须一起恢复后才能正确测得打开状态。
+      // 在同一个 JS 任务内完成测量并还原，浏览器不会绘制中间状态。
+      const applied = LAYOUT_CLASSES.filter((name) => $root.classList.contains(name));
+      $root.classList.add(MEASURING_CLASS);
+      $root.classList.remove(...LAYOUT_CLASSES);
+      try {
+        const $chapter = $root.querySelector<HTMLElement>(CHAPTER_SELECTOR);
+        if ($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root)) return "chapter";
+        const commentOpen = [...$root.querySelectorAll<HTMLElement>(SIDE_CARD_SELECTOR)].some(
+          ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
+        );
+        return commentOpen ? "comment" : null;
+      } finally {
+        $root.classList.add(...applied);
+        $root.classList.remove(MEASURING_CLASS);
       }
-      const opened: PanelKind | null = chapterOpen ? "chapter" : commentOpen ? "comment" : null;
-      if (opened) panelStates.set($root, { kind: opened, lastSeen: now });
-      else panelStates.delete($root);
-      return opened;
     };
 
     const isInlineSearch = () =>
-        SEARCH_PATH_PATTERN.test(window.location.pathname) ||
-        document.querySelector("#search-body-container, #search-result-container") != null;
+      SEARCH_PATH_PATTERN.test(window.location.pathname) ||
+      document.querySelector("#search-body-container, #search-result-container") != null;
 
     const isUnsupportedPage = () => DouYinRouter.isLive() || isInlineSearch();
     const syncPreference = () => !isUnsupportedPage() && resolveLayoutMode(getLayoutMode(LAYOUT_KEY)) === "bottom";
     const clearPicker = ($root: HTMLElement) => {
-      $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS);
+      $root.classList.remove(...LAYOUT_CLASSES, MEASURING_CLASS);
       pickers.get($root)?.destroy();
       pickers.delete($root);
-      panelStates.delete($root);
     };
 
     const update = () => {
@@ -89,28 +103,36 @@ export const DouYinVideoPortraitCommentSplit = {
 
       if (!bottom) {
         for (const $root of prewarmedRoots.keys()) {
-          $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS);
+          $root.classList.remove(...LAYOUT_CLASSES);
         }
         prewarmedRoots.clear();
         navigating = false;
       }
 
-      if (!skip) for (const $root of document.querySelectorAll<HTMLElement>(ROOT_SELECTOR)) {
-        const openedPanel = getOpenedSidePanel($root);
-        if (!openedPanel) continue;
-        $root.classList.toggle(BOTTOM_CLASS, bottom);
-        $root.classList.toggle(COMMENT_CLASS, bottom && openedPanel === "comment");
-        $root.classList.toggle(CHAPTER_CLASS, bottom && openedPanel === "chapter");
-        let picker = pickers.get($root);
-        if (!picker?.element.isConnected) {
-          picker?.destroy();
-          picker = createLayoutPicker(LAYOUT_KEY);
-          $root.appendChild(picker.element);
-          pickers.set($root, picker);
+      if (!skip)
+        for (const $root of document.querySelectorAll<HTMLElement>(ROOT_SELECTOR)) {
+          const nativePanel = getOpenedSidePanel($root);
+          const prewarmedPanel = bottom && prewarmedRoots.get($root);
+          // 原生侧栏一旦真正打开就结束预热，否则用户紧接着点关闭时会被预热状态锁住。
+          if (prewarmedPanel && nativePanel === prewarmedPanel) {
+            prewarmedRoots.delete($root);
+            $root.classList.remove(PREWARM_CLASS);
+          }
+          const openedPanel = prewarmedPanel || nativePanel;
+          if (!openedPanel) continue;
+          $root.classList.toggle(BOTTOM_CLASS, bottom);
+          $root.classList.toggle(COMMENT_CLASS, bottom && openedPanel === "comment");
+          $root.classList.toggle(CHAPTER_CLASS, bottom && openedPanel === "chapter");
+          let picker = pickers.get($root);
+          if (!picker?.element.isConnected) {
+            picker?.destroy();
+            picker = createLayoutPicker(LAYOUT_KEY);
+            $root.appendChild(picker.element);
+            pickers.set($root, picker);
+          }
+          picker.update();
+          nextActiveRoots.add($root);
         }
-        picker.update();
-        nextActiveRoots.add($root);
-      }
 
       for (const $root of pickers.keys()) {
         if (!nextActiveRoots.has($root)) clearPicker($root);
@@ -162,9 +184,13 @@ export const DouYinVideoPortraitCommentSplit = {
         const $target = mutation.target as Element;
         if (mutation.type === "attributes") {
           // 忽略播放器进度条等频繁变化的样式属性。
+          if (mutation.attributeName === "class" && $target.matches(FEED_ROOT_SELECTOR)) {
+            return nativeClassNames(mutation.oldValue || "") !== nativeClassNames($target.className);
+          }
           return $target.matches(RELEVANT_SELECTOR);
         }
-        if ($target.matches(RELEVANT_SELECTOR) || $target.closest(`${SIDE_CARD_SELECTOR}, ${CHAPTER_SELECTOR}`)) return true;
+        if ($target.matches(RELEVANT_SELECTOR) || $target.closest(`${SIDE_CARD_SELECTOR}, ${CHAPTER_SELECTOR}`))
+          return true;
         return [...mutation.addedNodes, ...mutation.removedNodes].some(containsRelevantElement);
       });
       if (hasRelevantChange) {
@@ -183,6 +209,7 @@ export const DouYinVideoPortraitCommentSplit = {
         childList: true,
         subtree: true,
         attributes: true,
+        attributeOldValue: true,
         attributeFilter: ["class", "style", "data-e2e", "aria-hidden"],
       });
       observerSuspended = false;
@@ -200,11 +227,10 @@ export const DouYinVideoPortraitCommentSplit = {
         prewarmTimerId = null;
         navigating = false;
         for (const $root of prewarmedRoots.keys()) {
-          $root.classList.remove(PREWARM_CLASS);
-          if (!pickers.has($root)) $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS);
+          $root.classList.remove(...LAYOUT_CLASSES);
         }
         prewarmedRoots.clear();
-        scheduleUpdate();
+        update();
       }, 850);
     };
     const onClick = (event: MouseEvent) => {
@@ -212,21 +238,26 @@ export const DouYinVideoPortraitCommentSplit = {
       if (!($target instanceof Element)) return;
       const $root = $target.closest<HTMLElement>(FEED_ROOT_SELECTOR);
       if (syncPreference() && $root) {
-        const kind: PanelKind | null = $target.closest('[data-e2e="chapter-container"]')
+        const $chapter = $target.closest<HTMLElement>('[data-e2e="chapter-container"]');
+        // “下一章”与章节标题位于同一容器，只有标题才会打开章节侧栏。
+        const chapterTitle = $chapter?.firstElementChild?.firstElementChild;
+        const kind: PanelKind | null = chapterTitle?.contains($target)
           ? "chapter"
-          : $target.closest('[data-e2e="feed-comment-icon"]') ? "comment" : null;
+          : $target.closest('[data-e2e="feed-comment-icon"]')
+            ? "comment"
+            : null;
         // 在原生点击处理前确定目标侧栏，避免首次打开章节时误拉出隐藏的评论区。
         if (kind && getOpenedSidePanel($root) !== kind) {
           navigating = false;
-          panelStates.set($root, { kind, lastSeen: Date.now() });
           addPrewarmRoot($root, kind);
           settlePrewarm();
         }
       }
       if ($target.closest(RELEVANT_SELECTOR)) scheduleUpdate();
     };
-    const prewarmNextVideo = () => {
+    const prewarmNextVideo = (event?: WheelEvent) => {
       if (!syncPreference()) return;
+      if (event?.target instanceof Element && event.target.closest("#relatedVideoCard, #chapterVideoCard")) return;
       const $active = document.querySelector<HTMLElement>(ROOT_SELECTOR);
       if (!$active || getOpenedSidePanel($active) !== "comment") return;
       navigating = true;
@@ -296,7 +327,7 @@ export const DouYinVideoPortraitCommentSplit = {
         Panel.removeValueChangeListener(modeListenerId);
         for (const $root of pickers.keys()) clearPicker($root);
         for (const $root of prewarmedRoots.keys()) {
-          $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS);
+          $root.classList.remove(...LAYOUT_CLASSES, MEASURING_CLASS);
         }
         prewarmedRoots.clear();
       },
