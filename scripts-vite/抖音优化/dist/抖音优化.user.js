@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.13.2
+// @version      2026.11.13.3
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -29687,7 +29687,7 @@
   var layoutPicker_default =
     '.dy-layout-picker {\r\n  position: absolute;\r\n  z-index: 9999;\r\n  top: 9px;\r\n  right: 52px;\r\n  color: #fff;\r\n  font: 12px/1.4 sans-serif;\r\n  pointer-events: auto;\r\n}\r\n\r\n.dy-layout-picker > summary {\r\n  display: block;\r\n  padding: 5px 9px;\r\n  border: 1px solid rgba(255, 255, 255, 0.25);\r\n  border-radius: 7px;\r\n  background: rgba(26, 26, 32, 0.88);\r\n  cursor: pointer;\r\n  user-select: none;\r\n  white-space: nowrap;\r\n}\r\n\r\n.dy-layout-picker > summary::-webkit-details-marker {\r\n  display: none;\r\n}\r\n\r\n.dy-layout-picker-menu {\r\n  position: absolute;\r\n  top: calc(100% + 4px);\r\n  right: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  min-width: 90px;\r\n  padding: 4px;\r\n  border-radius: 8px;\r\n  background: #24252e;\r\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\r\n}\r\n\r\n.dy-layout-picker-menu button {\r\n  width: 100%;\r\n  padding: 6px 10px;\r\n  border: 0;\r\n  border-radius: 5px;\r\n  background: transparent;\r\n  color: #eee;\r\n  text-align: left;\r\n  cursor: pointer;\r\n}\r\n\r\n.dy-layout-picker-menu button:hover,\r\n.dy-layout-picker-menu button[aria-pressed="true"] {\r\n  background: rgba(255, 255, 255, 0.14);\r\n}\r\n';
   var portraitCommentSplit_default =
-    "/* 只调整当前展开的侧栏，避免章节要点激活时把隐藏的评论面板也拉出来。 */\r\n.dy-comment-layout-bottom {\r\n  --dy-comment-player-height: 40%;\r\n  --dy-comment-panel-height: 60%;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer {\r\n  width: 100% !important;\r\n  height: var(--dy-comment-player-height) !important;\r\n  max-height: var(--dy-comment-player-height) !important;\r\n  min-height: 0 !important;\r\n  transition: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer :is(.basePlayerContainer, .xgplayer) {\r\n  height: 100% !important;\r\n  max-height: 100% !important;\r\n  min-height: 0 !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer video {\r\n  width: 100% !important;\r\n  height: 100% !important;\r\n  max-width: 100% !important;\r\n  max-height: 100% !important;\r\n  object-fit: contain !important;\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n}\r\n\r\n/* 仅在新侧栏挂载期取消宽度过渡；之后仍能按原生方式关闭。 */\r\n.dy-comment-layout-prewarming.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r\n  transition: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n  z-index: 3 !important;\r\n  /* 保留原生 transform 和关闭动画。 */\r\n}\r\n\r\n.dy-comment-layout-bottom > .dy-layout-picker {\r\n  top: calc(var(--dy-comment-player-height) + 9px);\r\n}\r\n";
+    "/* 只调整当前展开的侧栏，避免章节要点激活时把隐藏的评论面板也拉出来。 */\r\n.dy-comment-layout-bottom {\r\n  --dy-comment-player-height: 40%;\r\n  --dy-comment-panel-height: 60%;\r\n}\r\n\r\n/* 在测量原生打开/关闭状态时禁止宽度过渡，避免读取到上一帧的动画宽度。 */\r\n.dy-comment-layout-measuring :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {\r\n  transition: none !important;\r\n  animation: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer {\r\n  width: 100% !important;\r\n  height: var(--dy-comment-player-height) !important;\r\n  max-height: var(--dy-comment-player-height) !important;\r\n  min-height: 0 !important;\r\n  transition: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer :is(.basePlayerContainer, .xgplayer) {\r\n  height: 100% !important;\r\n  max-height: 100% !important;\r\n  min-height: 0 !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer video {\r\n  width: 100% !important;\r\n  height: 100% !important;\r\n  max-width: 100% !important;\r\n  max-height: 100% !important;\r\n  object-fit: contain !important;\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n}\r\n\r\n/* 仅在新侧栏挂载期取消宽度过渡；之后仍能按原生方式关闭。 */\r\n.dy-comment-layout-prewarming.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r\n  transition: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n  z-index: 3 !important;\r\n  /* 保留原生 transform 和关闭动画。 */\r\n}\r\n\r\n.dy-comment-layout-bottom > .dy-layout-picker {\r\n  top: calc(var(--dy-comment-player-height) + 9px);\r\n}\r\n";
   var ROOT_SELECTOR = '#sliderVideo[data-e2e="feed-active-video"], #slideMode[data-e2e="feed-active-video"]';
   var FEED_ROOT_SELECTOR = "#sliderVideo, #slideMode";
   var SIDE_CARD_SELECTOR = "#videoSideCard, #videoSideBar";
@@ -29698,6 +29698,9 @@
   var COMMENT_CLASS = "dy-comment-panel-open";
   var CHAPTER_CLASS = "dy-chapter-layout-open";
   var PREWARM_CLASS = "dy-comment-layout-prewarming";
+  var MEASURING_CLASS = "dy-comment-layout-measuring";
+  var LAYOUT_CLASSES = [BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS];
+  var LAYOUT_CLASS_SET = new Set(LAYOUT_CLASSES.concat(MEASURING_CLASS));
   var LAYOUT_KEY$1 = "dy-video-commentLayout";
   var SEARCH_PATH_PATTERN = /(?:^|\/)search(?:\/|$)/;
   var DouYinVideoPortraitCommentSplit = {
@@ -29706,7 +29709,11 @@
       const styles = [addStyle(portraitCommentSplit_default), addStyle(layoutPicker_default)];
       const pickers = new Map();
       const prewarmedRoots = new Map();
-      const panelStates = new WeakMap();
+      const nativeClassNames = (classes) =>
+        classes
+          .split(/\s+/)
+          .filter((name) => name && !LAYOUT_CLASS_SET.has(name))
+          .join(" ");
       const isOpenedPanel = ($panel, $root) => {
         const panelStyle = window.getComputedStyle($panel);
         if (panelStyle.display === "none" || panelStyle.visibility === "hidden" || Number(panelStyle.opacity) < 0.05)
@@ -29726,23 +29733,21 @@
       };
       const getOpenedSidePanel = ($root) => {
         if (!$root.querySelector(".playerContainer")?.querySelector("video")) return null;
-        const $chapter = $root.querySelector(CHAPTER_SELECTOR);
-        const chapterOpen = !!($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root));
-        const commentOpen = [...$root.querySelectorAll(SIDE_CARD_SELECTOR)].some(
-          ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
-        );
-        const now = Date.now();
-        const previous = panelStates.get($root);
-        if (previous && now - previous.lastSeen < 450 && !(previous.kind === "chapter" ? chapterOpen : commentOpen))
-          return previous.kind;
-        const opened = chapterOpen ? "chapter" : commentOpen ? "comment" : null;
-        if (opened)
-          panelStates.set($root, {
-            kind: opened,
-            lastSeen: now,
-          });
-        else panelStates.delete($root);
-        return opened;
+        const applied = LAYOUT_CLASSES.filter((name) => $root.classList.contains(name));
+        $root.classList.add(MEASURING_CLASS);
+        $root.classList.remove(...LAYOUT_CLASSES);
+        try {
+          const $chapter = $root.querySelector(CHAPTER_SELECTOR);
+          if ($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root)) return "chapter";
+          return [...$root.querySelectorAll(SIDE_CARD_SELECTOR)].some(
+            ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
+          )
+            ? "comment"
+            : null;
+        } finally {
+          $root.classList.add(...applied);
+          $root.classList.remove(MEASURING_CLASS);
+        }
       };
       const isInlineSearch = () =>
         SEARCH_PATH_PATTERN.test(window.location.pathname) ||
@@ -29750,24 +29755,28 @@
       const isUnsupportedPage = () => DouYinRouter.isLive() || isInlineSearch();
       const syncPreference = () => !isUnsupportedPage() && resolveLayoutMode(getLayoutMode(LAYOUT_KEY$1)) === "bottom";
       const clearPicker = ($root) => {
-        $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS);
+        $root.classList.remove(...LAYOUT_CLASSES, MEASURING_CLASS);
         pickers.get($root)?.destroy();
         pickers.delete($root);
-        panelStates.delete($root);
       };
       const update = () => {
         const skip = isUnsupportedPage();
         const bottom = syncPreference();
         const nextActiveRoots = new Set();
         if (!bottom) {
-          for (const $root of prewarmedRoots.keys())
-            $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS);
+          for (const $root of prewarmedRoots.keys()) $root.classList.remove(...LAYOUT_CLASSES);
           prewarmedRoots.clear();
           navigating = false;
         }
         if (!skip)
           for (const $root of document.querySelectorAll(ROOT_SELECTOR)) {
-            const openedPanel = getOpenedSidePanel($root);
+            const nativePanel = getOpenedSidePanel($root);
+            const prewarmedPanel = bottom && prewarmedRoots.get($root);
+            if (prewarmedPanel && nativePanel === prewarmedPanel) {
+              prewarmedRoots.delete($root);
+              $root.classList.remove(PREWARM_CLASS);
+            }
+            const openedPanel = prewarmedPanel || nativePanel;
             if (!openedPanel) continue;
             $root.classList.toggle(BOTTOM_CLASS, bottom);
             $root.classList.toggle(COMMENT_CLASS, bottom && openedPanel === "comment");
@@ -29823,7 +29832,11 @@
         if (
           mutations.some((mutation) => {
             const $target = mutation.target;
-            if (mutation.type === "attributes") return $target.matches(RELEVANT_SELECTOR);
+            if (mutation.type === "attributes") {
+              if (mutation.attributeName === "class" && $target.matches(FEED_ROOT_SELECTOR))
+                return nativeClassNames(mutation.oldValue || "") !== nativeClassNames($target.className);
+              return $target.matches(RELEVANT_SELECTOR);
+            }
             if ($target.matches(RELEVANT_SELECTOR) || $target.closest(`${SIDE_CARD_SELECTOR}, ${CHAPTER_SELECTOR}`))
               return true;
             return [...mutation.addedNodes, ...mutation.removedNodes].some(containsRelevantElement);
@@ -29842,6 +29855,7 @@
           childList: true,
           subtree: true,
           attributes: true,
+          attributeOldValue: true,
           attributeFilter: ["class", "style", "data-e2e", "aria-hidden"],
         });
         observerSuspended = false;
@@ -29858,12 +29872,9 @@
         prewarmTimerId = window.setTimeout(() => {
           prewarmTimerId = null;
           navigating = false;
-          for (const $root of prewarmedRoots.keys()) {
-            $root.classList.remove(PREWARM_CLASS);
-            if (!pickers.has($root)) $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS);
-          }
+          for (const $root of prewarmedRoots.keys()) $root.classList.remove(...LAYOUT_CLASSES);
           prewarmedRoots.clear();
-          scheduleUpdate();
+          update();
         }, 850);
       };
       const onClick = (event) => {
@@ -29871,25 +29882,24 @@
         if (!($target instanceof Element)) return;
         const $root = $target.closest(FEED_ROOT_SELECTOR);
         if (syncPreference() && $root) {
-          const kind = $target.closest('[data-e2e="chapter-container"]')
+          const kind = $target
+            .closest('[data-e2e="chapter-container"]')
+            ?.firstElementChild?.firstElementChild?.contains($target)
             ? "chapter"
             : $target.closest('[data-e2e="feed-comment-icon"]')
               ? "comment"
               : null;
           if (kind && getOpenedSidePanel($root) !== kind) {
             navigating = false;
-            panelStates.set($root, {
-              kind,
-              lastSeen: Date.now(),
-            });
             addPrewarmRoot($root, kind);
             settlePrewarm();
           }
         }
         if ($target.closest(RELEVANT_SELECTOR)) scheduleUpdate();
       };
-      const prewarmNextVideo = () => {
+      const prewarmNextVideo = (event) => {
         if (!syncPreference()) return;
+        if (event?.target instanceof Element && event.target.closest("#relatedVideoCard, #chapterVideoCard")) return;
         const $active = document.querySelector(ROOT_SELECTOR);
         if (!$active || getOpenedSidePanel($active) !== "comment") return;
         navigating = true;
@@ -29952,8 +29962,7 @@
           document.removeEventListener("visibilitychange", onVisibilityChange);
           Panel.removeValueChangeListener(modeListenerId);
           for (const $root of pickers.keys()) clearPicker($root);
-          for (const $root of prewarmedRoots.keys())
-            $root.classList.remove(BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLASS);
+          for (const $root of prewarmedRoots.keys()) $root.classList.remove(...LAYOUT_CLASSES, MEASURING_CLASS);
           prewarmedRoots.clear();
         },
       ];
