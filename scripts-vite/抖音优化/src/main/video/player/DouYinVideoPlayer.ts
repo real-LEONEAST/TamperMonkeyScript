@@ -37,6 +37,16 @@ export const DouYinVideoPlayer = {
   },
   init() {
     DouYinVideoBlock.init();
+    // 竖屏桌面窗口中，抖音会将右侧工具栏放大近两倍；限制缩放以免遮挡画面。
+    // 使用较低的选择器优先级，保留“禁用右侧工具栏 transform”设置的覆盖能力。
+    addStyle(/*css*/ `
+      @media screen and (orientation: portrait) and (min-width: 551px) {
+        .positionBox {
+          transform: scale(0.95) !important;
+          transform-origin: right bottom !important;
+        }
+      }
+    `);
     Panel.onceExec("dy-short-cut", () => {
       DouYinVideoPlayerShortCut.init();
     });
@@ -1736,19 +1746,11 @@ export const DouYinVideoPlayer = {
    */
   rightToolBarAutoHide() {
     log.info(`自动隐藏右侧工具栏`);
-    const result = DouYinVideoElementAutoHide("dy-video-rightToolBarAutoHide-delayTime", [
+    return DouYinVideoElementAutoHide("dy-video-rightToolBarAutoHide-delayTime", [
       ".positionBox",
       // 直播
       '[data-e2e="feed-live"] .douyin-player > div:has(svg path[d="M13.556 17.778a1.778 1.778 0 1 1-3.556 0 1.778 1.778 0 0 1 3.556 0zM19.778 17.778a1.778 1.778 0 1 1-3.556 0 1.778 1.778 0 0 1 3.556 0zM24.222 19.556a1.778 1.778 0 1 0 0-3.556 1.778 1.778 0 0 0 0 3.556z"])',
     ]);
-    result.push(
-      addStyle(/*css*/ `
-			.positionBox{
-				transition: opacity 0.5s;
-			}
-		  `)
-    );
-    return result;
   },
   /**
    * 手势返回关闭评论区

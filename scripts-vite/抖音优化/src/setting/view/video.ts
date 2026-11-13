@@ -383,7 +383,7 @@ export const PanelVideoConfig: PopsPanelContentConfig = {
                         UISwitch(
                           "自动隐藏右侧工具栏",
                           "dy-video-rightToolBarAutoHide",
-                          false,
+                          true,
                           void 0,
                           "鼠标移入时自动显示，鼠标移除时自动隐藏"
                         ),
