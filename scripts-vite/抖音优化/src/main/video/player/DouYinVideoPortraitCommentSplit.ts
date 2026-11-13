@@ -21,6 +21,7 @@ const LAYOUT_CLASS_SET = new Set(LAYOUT_CLASSES.concat(MEASURING_CLASS));
 const LAYOUT_KEY = "dy-video-commentLayout";
 const SEARCH_PATH_PATTERN = /(?:^|\/)search(?:\/|$)/;
 type PanelKind = "chapter" | "comment";
+const PANEL_SWITCH_HOLD_MS = 450;
 
 /**
  * 视频侧栏（评论/章节要点）自动/下方/右侧布局。搜索结果的内嵌视频保持原生右侧布局。
@@ -32,7 +33,7 @@ export const DouYinVideoPortraitCommentSplit = {
     log.info("启用视频评论区布局切换");
     const styles = [addStyle(splitCSS), addStyle(pickerCSS)];
     const pickers = new Map<HTMLElement, ReturnType<typeof createLayoutPicker>>();
-    const prewarmedRoots = new Map<HTMLElement, PanelKind>();
+    const prewarmedRoots = new Map<HTMLElement, { kind: PanelKind; since: number }>();
 
     // 忽略测量及布局调整自身产生的 class 变更，仍监听抖音对原生 class 的修改。
     const nativeClassNames = (classes: string) =>
@@ -61,7 +62,7 @@ export const DouYinVideoPortraitCommentSplit = {
       );
     };
 
-    const getOpenedSidePanel = ($root: HTMLElement): PanelKind | null => {
+    const getOpenedSidePanel = ($root: HTMLElement, preferred?: PanelKind): PanelKind | null => {
       const $player = $root.querySelector<HTMLElement>(".playerContainer");
       if (!$player?.querySelector("video")) return null;
 
@@ -73,10 +74,14 @@ export const DouYinVideoPortraitCommentSplit = {
       $root.classList.remove(...LAYOUT_CLASSES);
       try {
         const $chapter = $root.querySelector<HTMLElement>(CHAPTER_SELECTOR);
-        if ($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root)) return "chapter";
+        const chapterOpen = Boolean($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root));
         const commentOpen = [...$root.querySelectorAll<HTMLElement>(SIDE_CARD_SELECTOR)].some(
           ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
         );
+        // 原生评论和章节可能在切换期间同时存在，优先使用刚点击的面板。
+        if (preferred === "chapter" && chapterOpen) return "chapter";
+        if (preferred === "comment" && commentOpen) return "comment";
+        if (chapterOpen) return "chapter";
         return commentOpen ? "comment" : null;
       } finally {
         $root.classList.add(...applied);
@@ -111,10 +116,18 @@ export const DouYinVideoPortraitCommentSplit = {
 
       if (!skip)
         for (const $root of document.querySelectorAll<HTMLElement>(ROOT_SELECTOR)) {
-          const nativePanel = getOpenedSidePanel($root);
-          const prewarmedPanel = bottom && prewarmedRoots.get($root);
-          // 原生侧栏一旦真正打开就结束预热，否则用户紧接着点关闭时会被预热状态锁住。
-          if (prewarmedPanel && nativePanel === prewarmedPanel) {
+          const pending = prewarmedRoots.get($root);
+          const preferredPanel =
+            pending?.kind ??
+            ($root.classList.contains(COMMENT_CLASS)
+              ? "comment"
+              : $root.classList.contains(CHAPTER_CLASS)
+                ? "chapter"
+                : undefined);
+          const nativePanel = getOpenedSidePanel($root, preferredPanel);
+          const prewarmedPanel = bottom && pending?.kind;
+          // 原生面板会在切换过程中短暂消失，延迟结束预热，防止旧侧栏再次抢占布局。
+          if (pending && nativePanel === pending.kind && performance.now() - pending.since >= PANEL_SWITCH_HOLD_MS) {
             prewarmedRoots.delete($root);
             $root.classList.remove(PREWARM_CLASS);
           }
@@ -219,7 +232,7 @@ export const DouYinVideoPortraitCommentSplit = {
       $root.classList.add(BOTTOM_CLASS, PREWARM_CLASS);
       $root.classList.toggle(COMMENT_CLASS, kind === "comment");
       $root.classList.toggle(CHAPTER_CLASS, kind === "chapter");
-      prewarmedRoots.set($root, kind);
+      prewarmedRoots.set($root, { kind, since: performance.now() });
     };
     const settlePrewarm = () => {
       if (prewarmTimerId !== null) window.clearTimeout(prewarmTimerId);
@@ -238,6 +251,11 @@ export const DouYinVideoPortraitCommentSplit = {
       if (!($target instanceof Element)) return;
       const $root = $target.closest<HTMLElement>(FEED_ROOT_SELECTOR);
       if (syncPreference() && $root) {
+        // 关闭动作不应被短暂的预热状态重新打开。
+        if ($target.closest("#chapterVideoCard svg.GMpBYXh8, #relatedVideoCard svg.vuTeHwH2")) {
+          prewarmedRoots.delete($root);
+          $root.classList.remove(PREWARM_CLASS);
+        }
         const $chapter = $target.closest<HTMLElement>('[data-e2e="chapter-container"]');
         // “下一章”与章节标题位于同一容器，只有标题才会打开章节侧栏。
         const chapterTitle = $chapter?.firstElementChild?.firstElementChild;
@@ -247,10 +265,15 @@ export const DouYinVideoPortraitCommentSplit = {
             ? "comment"
             : null;
         // 在原生点击处理前确定目标侧栏，避免首次打开章节时误拉出隐藏的评论区。
-        if (kind && getOpenedSidePanel($root) !== kind) {
-          navigating = false;
-          addPrewarmRoot($root, kind);
-          settlePrewarm();
+        if (kind) {
+          if (getOpenedSidePanel($root) === kind) {
+            prewarmedRoots.delete($root);
+            $root.classList.remove(PREWARM_CLASS);
+          } else {
+            navigating = false;
+            addPrewarmRoot($root, kind);
+            settlePrewarm();
+          }
         }
       }
       if ($target.closest(RELEVANT_SELECTOR)) scheduleUpdate();
@@ -259,7 +282,11 @@ export const DouYinVideoPortraitCommentSplit = {
       if (!syncPreference()) return;
       if (event?.target instanceof Element && event.target.closest("#relatedVideoCard, #chapterVideoCard")) return;
       const $active = document.querySelector<HTMLElement>(ROOT_SELECTOR);
-      if (!$active || getOpenedSidePanel($active) !== "comment") return;
+      if (
+        !$active ||
+        getOpenedSidePanel($active, $active.classList.contains(COMMENT_CLASS) ? "comment" : undefined) !== "comment"
+      )
+        return;
       navigating = true;
 
       // 抖音会先挂载下一视频的右侧卡片，随后才把 feed-video 改成 feed-active-video。

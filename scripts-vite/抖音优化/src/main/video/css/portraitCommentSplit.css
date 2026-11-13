@@ -10,6 +10,13 @@
   animation: none !important;
 }
 
+/* 原生侧栏用宽度和位移动画从右侧展开；下方布局中的同步测量会反复重启这些
+   过渡，造成评论区宽度卡住或章节面板不停闪动，因此在下方布局始终禁用。 */
+.dy-comment-layout-bottom :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {
+  transition: none !important;
+  animation: none !important;
+}
+
 .dy-comment-layout-bottom .playerContainer {
   width: 100% !important;
   height: var(--dy-comment-player-height) !important;
@@ -43,11 +50,6 @@
   top: auto !important;
   bottom: 0 !important;
   background-color: rgba(0, 0, 0, 0.9);
-}
-
-/* 仅在新侧栏挂载期取消宽度过渡；之后仍能按原生方式关闭。 */
-.dy-comment-layout-prewarming.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
-  transition: none !important;
 }
 
 .dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {
