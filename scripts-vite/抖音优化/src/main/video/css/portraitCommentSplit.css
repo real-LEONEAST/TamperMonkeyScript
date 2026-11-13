@@ -4,6 +4,12 @@
   --dy-comment-panel-height: 60%;
 }
 
+/* 在测量原生打开/关闭状态时禁止宽度过渡，避免读取到上一帧的动画宽度。 */
+.dy-comment-layout-measuring :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {
+  transition: none !important;
+  animation: none !important;
+}
+
 .dy-comment-layout-bottom .playerContainer {
   width: 100% !important;
   height: var(--dy-comment-player-height) !important;
