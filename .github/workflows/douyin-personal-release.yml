@@ -38,10 +38,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Upstream intentionally ignores pnpm-lock.yaml; do not require a missing lockfile.
+        run: pnpm install --filter . --filter douyin --no-frozen-lockfile
 
       - name: Test release metadata generator
         run: node --test .github/scripts/publish-douyin.test.mjs
