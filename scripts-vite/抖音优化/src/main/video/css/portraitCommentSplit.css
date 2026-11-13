@@ -62,7 +62,9 @@
   bottom: 0 !important;
   background-color: rgba(0, 0, 0, 0.9);
   z-index: 3 !important;
-  /* 保留原生 transform 和关闭动画。 */
+  /* 原生章节面板在右侧打开时通过 translateX(-100%) 移入视口；
+     下方布局已经将其定位到 left: 0，必须取消该位移，否则会整块滑出左边界。 */
+  transform: none !important;
 }
 
 .dy-comment-layout-bottom > .dy-layout-picker {
