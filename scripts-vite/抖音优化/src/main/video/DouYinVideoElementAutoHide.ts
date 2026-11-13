@@ -21,40 +21,20 @@ export const DouYinVideoElementAutoHide = (
 
   const hideCSSText = (__delayTime__ = delayTime.value) => {
     const importantCSSText = opacityIsImportant ? " !important" : "";
-    if (__delayTime__ === 0) {
-      // 直接隐藏
-      return /*css*/ `
-            ${selectors.join(",")}{
-                opacity: 0${importantCSSText};
-                transition: ${__delayTime__ === 0 ? "none !important;" : "opacity .3s linear !important;"}
-
-                &[${opacityHideAttrName}]{
-                    opacity: 0${importantCSSText};
-                }
-                &[${opacityShowAttrName}],
-                &:hover{
-                    opacity: 1${importantCSSText};
-                }
-            }
-            `;
-    } else {
-      // 主动添加隐藏属性才会隐藏
-      return /*css*/ `
-            ${selectors.join(",")}{
-                transition: opacity .3s linear !important;
-
-                &[${opacityHideAttrName}]{
-                    opacity: 0${importantCSSText};
-                }
-                &[${opacityShowAttrName}]{
-                    opacity: 1${importantCSSText};
-                }
-                &:hover{
-                    opacity: 1${importantCSSText};
-                }
-            }
-            `;
-    }
+    // 每个选择器生成独立的平面规则，避免不支持 :has() 或 CSS 嵌套的 Firefox
+    // 将包含 .positionBox 的整组规则一并丢弃。
+    return selectors
+      .map((selector) => {
+        return /*css*/ `
+          ${selector} {
+            ${__delayTime__ === 0 ? `opacity: 0${importantCSSText};` : ""}
+            transition: ${__delayTime__ === 0 ? "none" : "opacity .3s linear"} !important;
+          }
+          ${selector}[${opacityHideAttrName}] { opacity: 0${importantCSSText}; }
+          ${selector}[${opacityShowAttrName}], ${selector}:hover { opacity: 1${importantCSSText}; }
+        `;
+      })
+      .join("\n");
   };
   const $style = addStyle(hideCSSText());
   result.push($style);
@@ -67,13 +47,20 @@ export const DouYinVideoElementAutoHide = (
   const lockFn = new utils.LockFunction(() => {
     /** 视频信息列表 */
     selectors.forEach((selector) => {
-      const $el = $<HTMLElement>(`${selector.trim()}:not([${DouYinVideoElementAutoHideInjectAttr}])`);
+      let $el: HTMLElement | undefined;
+      try {
+        $el = $<HTMLElement>(`${selector.trim()}:not([${DouYinVideoElementAutoHideInjectAttr}])`);
+      } catch {
+        // 某些 Firefox 版本尚不支持直播工具栏的 :has() 选择器。
+        return;
+      }
       if (!$el) return;
       if ($el.querySelector(`[${DouYinVideoElementAutoHideInjectAttr}]`)) return;
       if ($el.closest(`[${DouYinVideoElementAutoHideInjectAttr}]`)) return;
       $el.setAttribute(DouYinVideoElementAutoHideInjectAttr, "");
 
       let timeId: number = 0;
+      let pointerInside = false;
       /**
        * 显示
        */
@@ -94,13 +81,13 @@ export const DouYinVideoElementAutoHide = (
        */
       const hide = (isEnableDelayTime: boolean = false) => {
         if (isEnableDelayTime) {
-          timeId = setTimeout(() => {
-            hide(!isEnableDelayTime);
-          }, delayTime.value);
+          if (pointerInside) return;
+          clearTimeout(timeId);
+          timeId = window.setTimeout(() => hide(false), delayTime.value);
           return;
         }
-        // 光标停在工具栏上时保持可见，避免准备点击评论按钮时闪退。
-        if ($el.matches(":hover")) return;
+        // Firefox 的 :hover 状态可能在工具栏重绘时短暂失效。
+        if (pointerInside || $el.matches(":hover")) return;
         if (delayTime.value === 0) {
           // 这个是默认隐藏，移除显示的
           if ($el.hasAttribute(opacityShowAttrName)) $el.removeAttribute(opacityShowAttrName);
@@ -111,29 +98,40 @@ export const DouYinVideoElementAutoHide = (
           if ($el.hasAttribute(opacityShowAttrName)) $el.removeAttribute(opacityShowAttrName);
         }
       };
-      // 光标从视频移向点赞/评论工具栏时，持续刷新隐藏倒计时。
-      // 只监听所属播放器，不监听整个 document，也限制触发频率。
+      // 监听所属播放器和工具栏自身；工具栏内部移动时不要重启隐藏倒计时。
       const $player = $el.closest<HTMLElement>(
         '#sliderVideo, #slideMode, [data-e2e="video-detail"], .douyin-player, .playerContainer'
       );
       let lastMove = 0;
-      const onPointerMove = () => {
+      const onPointerMove = (event: PointerEvent) => {
         const now = Date.now();
         if (now - lastMove < 150) return;
         lastMove = now;
+        const rect = $el.getBoundingClientRect();
+        pointerInside =
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom;
         show();
-        hide(true);
+        if (!pointerInside) hide(true);
       };
       const onPointerEnter = () => {
-        lastMove = 0;
-        onPointerMove();
+        pointerInside = true;
+        show();
+      };
+      const onToolbarPointerMove = () => {
+        pointerInside = true;
+        show();
       };
       const onPointerLeave = () => {
+        pointerInside = false;
         show();
         hide(true);
       };
-      $player?.addEventListener("pointermove", onPointerMove, { passive: true });
+      $player?.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
       $el.addEventListener("pointerenter", onPointerEnter);
+      $el.addEventListener("pointermove", onToolbarPointerMove, { passive: true });
       $el.addEventListener("pointerleave", onPointerLeave);
       const interObserver = new IntersectionObserver(
         (entries) => {
@@ -157,8 +155,9 @@ export const DouYinVideoElementAutoHide = (
 
       result.push(() => {
         clearTimeout(timeId);
-        $player?.removeEventListener("pointermove", onPointerMove);
+        $player?.removeEventListener("pointermove", onPointerMove, true);
         $el.removeEventListener("pointerenter", onPointerEnter);
+        $el.removeEventListener("pointermove", onToolbarPointerMove);
         $el.removeEventListener("pointerleave", onPointerLeave);
         interObserver.unobserve($el);
         interObserver.disconnect();
