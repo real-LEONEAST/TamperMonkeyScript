@@ -8,6 +8,8 @@ const pkg = utils.getPackageJSON();
 const userConfig = await GenerateUserConfig({
   projectDirName: utils.dirName,
   monkeyOption: {
+    // Personal release: bundle imports so GitHub Actions does not need optional global aliases.
+    disableExternalGlobals: true,
     userscript: {
       name: "抖音优化",
       // GM_xmlhttpRequest允许访问的域

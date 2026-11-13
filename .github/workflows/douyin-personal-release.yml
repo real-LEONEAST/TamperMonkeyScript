@@ -1,0 +1,65 @@
+name: Publish personal Douyin userscript
+
+on:
+  push:
+    branches: [release]
+    paths:
+      - ".github/workflows/douyin-personal-release.yml"
+      - ".github/scripts/publish-douyin.mjs"
+      - "scripts-vite/抖音优化/**"
+      - "!scripts-vite/抖音优化/dist/**"
+      - "script-components/**"
+      - "vite.utils.mts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-personal-douyin
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    if: github.repository == 'real-LEONEAST/TamperMonkeyScript'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test release metadata generator
+        run: node --test .github/scripts/publish-douyin.test.mjs
+
+      - name: Build userscript and metadata
+        run: pnpm --filter douyin run build:all
+
+      - name: Set fork update URLs and release version
+        run: node .github/scripts/publish-douyin.mjs
+
+      - name: Publish generated files to release branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- 'scripts-vite/抖音优化/dist/'
+          if git diff --cached --quiet; then
+            echo 'No generated changes to publish.'
+            exit 0
+          fi
+          git commit -m 'build(douyin): publish personal userscript [skip ci]'
+          git push origin HEAD:release
