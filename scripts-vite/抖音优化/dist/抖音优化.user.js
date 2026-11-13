@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.13.5
+// @version      2026.11.13.6
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -26074,37 +26074,18 @@
     const delayTime = Panel.getDynamicValue(delayTimeKey, Panel.getDefaultValue(delayTimeKey));
     const hideCSSText = (__delayTime__ = delayTime.value) => {
       const importantCSSText = opacityIsImportant ? " !important" : "";
-      if (__delayTime__ === 0)
-        return `
-            ${selectors.join(",")}{
-                opacity: 0${importantCSSText};
-                transition: ${__delayTime__ === 0 ? "none !important;" : "opacity .3s linear !important;"}
-
-                &[${opacityHideAttrName}]{
-                    opacity: 0${importantCSSText};
-                }
-                &[${opacityShowAttrName}],
-                &:hover{
-                    opacity: 1${importantCSSText};
-                }
-            }
-            `;
-      else
-        return `
-            ${selectors.join(",")}{
-                transition: opacity .3s linear !important;
-
-                &[${opacityHideAttrName}]{
-                    opacity: 0${importantCSSText};
-                }
-                &[${opacityShowAttrName}]{
-                    opacity: 1${importantCSSText};
-                }
-                &:hover{
-                    opacity: 1${importantCSSText};
-                }
-            }
-            `;
+      return selectors
+        .map((selector) => {
+          return `
+          ${selector} {
+            ${__delayTime__ === 0 ? `opacity: 0${importantCSSText};` : ""}
+            transition: ${__delayTime__ === 0 ? "none" : "opacity .3s linear"} !important;
+          }
+          ${selector}[${opacityHideAttrName}] { opacity: 0${importantCSSText}; }
+          ${selector}[${opacityShowAttrName}], ${selector}:hover { opacity: 1${importantCSSText}; }
+        `;
+        })
+        .join("\n");
     };
     const $style = addStyle(hideCSSText());
     result.push($style);
@@ -26116,12 +26097,18 @@
     });
     const lockFn = new utils.LockFunction(() => {
       selectors.forEach((selector) => {
-        const $el = $(`${selector.trim()}:not([${DouYinVideoElementAutoHideInjectAttr}])`);
+        let $el;
+        try {
+          $el = $(`${selector.trim()}:not([${DouYinVideoElementAutoHideInjectAttr}])`);
+        } catch {
+          return;
+        }
         if (!$el) return;
         if ($el.querySelector(`[data-is-inject-mouse-hide]`)) return;
         if ($el.closest(`[data-is-inject-mouse-hide]`)) return;
         $el.setAttribute(DouYinVideoElementAutoHideInjectAttr, "");
         let timeId = 0;
+        let pointerInside = false;
         const show = () => {
           clearTimeout(timeId);
           if (delayTime.value === 0) {
@@ -26133,12 +26120,12 @@
         };
         const hide = (isEnableDelayTime = false) => {
           if (isEnableDelayTime) {
-            timeId = setTimeout(() => {
-              hide(!isEnableDelayTime);
-            }, delayTime.value);
+            if (pointerInside) return;
+            clearTimeout(timeId);
+            timeId = window.setTimeout(() => hide(false), delayTime.value);
             return;
           }
-          if ($el.matches(":hover")) return;
+          if (pointerInside || $el.matches(":hover")) return;
           if (delayTime.value === 0) {
             if ($el.hasAttribute(opacityShowAttrName)) $el.removeAttribute(opacityShowAttrName);
           } else {
@@ -26150,23 +26137,38 @@
           '#sliderVideo, #slideMode, [data-e2e="video-detail"], .douyin-player, .playerContainer'
         );
         let lastMove = 0;
-        const onPointerMove = () => {
+        const onPointerMove = (event) => {
           const now = Date.now();
           if (now - lastMove < 150) return;
           lastMove = now;
+          const rect = $el.getBoundingClientRect();
+          pointerInside =
+            event.clientX >= rect.left &&
+            event.clientX <= rect.right &&
+            event.clientY >= rect.top &&
+            event.clientY <= rect.bottom;
           show();
-          hide(true);
+          if (!pointerInside) hide(true);
         };
         const onPointerEnter = () => {
-          lastMove = 0;
-          onPointerMove();
+          pointerInside = true;
+          show();
+        };
+        const onToolbarPointerMove = () => {
+          pointerInside = true;
+          show();
         };
         const onPointerLeave = () => {
+          pointerInside = false;
           show();
           hide(true);
         };
-        $player?.addEventListener("pointermove", onPointerMove, { passive: true });
+        $player?.addEventListener("pointermove", onPointerMove, {
+          capture: true,
+          passive: true,
+        });
         $el.addEventListener("pointerenter", onPointerEnter);
+        $el.addEventListener("pointermove", onToolbarPointerMove, { passive: true });
         $el.addEventListener("pointerleave", onPointerLeave);
         const interObserver = new IntersectionObserver(
           (entries) => {
@@ -26184,8 +26186,9 @@
         interObserver.observe($el);
         result.push(() => {
           clearTimeout(timeId);
-          $player?.removeEventListener("pointermove", onPointerMove);
+          $player?.removeEventListener("pointermove", onPointerMove, true);
           $el.removeEventListener("pointerenter", onPointerEnter);
+          $el.removeEventListener("pointermove", onToolbarPointerMove);
           $el.removeEventListener("pointerleave", onPointerLeave);
           interObserver.unobserve($el);
           interObserver.disconnect();
@@ -30131,6 +30134,14 @@
     $flag: { isWaitEnterFullScreen: false },
     init() {
       DouYinVideoBlock.init();
+      addStyle(`
+      @media screen and (orientation: portrait) and (min-width: 551px) {
+        .positionBox {
+          transform: scale(0.95) !important;
+          transform-origin: right bottom !important;
+        }
+      }
+    `);
       Panel.onceExec("dy-short-cut", () => {
         DouYinVideoPlayerShortCut.init();
       });
@@ -31448,18 +31459,10 @@
     },
     rightToolBarAutoHide() {
       log.info(`自动隐藏右侧工具栏`);
-      const result = DouYinVideoElementAutoHide("dy-video-rightToolBarAutoHide-delayTime", [
+      return DouYinVideoElementAutoHide("dy-video-rightToolBarAutoHide-delayTime", [
         ".positionBox",
         '[data-e2e="feed-live"] .douyin-player > div:has(svg path[d="M13.556 17.778a1.778 1.778 0 1 1-3.556 0 1.778 1.778 0 0 1 3.556 0zM19.778 17.778a1.778 1.778 0 1 1-3.556 0 1.778 1.778 0 0 1 3.556 0zM24.222 19.556a1.778 1.778 0 1 0 0-3.556 1.778 1.778 0 0 0 0 3.556z"])',
       ]);
-      result.push(
-        addStyle(`
-			.positionBox{
-				transition: opacity 0.5s;
-			}
-		  `)
-      );
-      return result;
     },
     gestureBackCloseComment() {
       log.info(`手势返回关闭评论区`);
@@ -35727,7 +35730,7 @@
                           UISwitch(
                             "自动隐藏右侧工具栏",
                             "dy-video-rightToolBarAutoHide",
-                            false,
+                            true,
                             void 0,
                             "鼠标移入时自动显示，鼠标移除时自动隐藏"
                           ),
