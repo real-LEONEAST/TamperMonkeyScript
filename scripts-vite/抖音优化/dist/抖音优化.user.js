@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.13.6
+// @version      2026.11.15.7
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -29690,7 +29690,7 @@
   var layoutPicker_default =
     '.dy-layout-picker {\r\n  position: absolute;\r\n  z-index: 9999;\r\n  top: 9px;\r\n  right: 52px;\r\n  color: #fff;\r\n  font: 12px/1.4 sans-serif;\r\n  pointer-events: auto;\r\n}\r\n\r\n.dy-layout-picker > summary {\r\n  display: block;\r\n  padding: 5px 9px;\r\n  border: 1px solid rgba(255, 255, 255, 0.25);\r\n  border-radius: 7px;\r\n  background: rgba(26, 26, 32, 0.88);\r\n  cursor: pointer;\r\n  user-select: none;\r\n  white-space: nowrap;\r\n}\r\n\r\n.dy-layout-picker > summary::-webkit-details-marker {\r\n  display: none;\r\n}\r\n\r\n.dy-layout-picker-menu {\r\n  position: absolute;\r\n  top: calc(100% + 4px);\r\n  right: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  min-width: 90px;\r\n  padding: 4px;\r\n  border-radius: 8px;\r\n  background: #24252e;\r\n  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);\r\n}\r\n\r\n.dy-layout-picker-menu button {\r\n  width: 100%;\r\n  padding: 6px 10px;\r\n  border: 0;\r\n  border-radius: 5px;\r\n  background: transparent;\r\n  color: #eee;\r\n  text-align: left;\r\n  cursor: pointer;\r\n}\r\n\r\n.dy-layout-picker-menu button:hover,\r\n.dy-layout-picker-menu button[aria-pressed="true"] {\r\n  background: rgba(255, 255, 255, 0.14);\r\n}\r\n';
   var portraitCommentSplit_default =
-    "/* 只调整当前展开的侧栏，避免章节要点激活时把隐藏的评论面板也拉出来。 */\r\n.dy-comment-layout-bottom {\r\n  --dy-comment-player-height: 40%;\r\n  --dy-comment-panel-height: 60%;\r\n}\r\n\r\n/* 在测量原生打开/关闭状态时禁止宽度过渡，避免读取到上一帧的动画宽度。 */\r\n.dy-comment-layout-measuring :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {\r\n  transition: none !important;\r\n  animation: none !important;\r\n}\r\n\r\n/* 原生侧栏用宽度和位移动画从右侧展开；下方布局中的同步测量会反复重启这些\r\n   过渡，造成评论区宽度卡住或章节面板不停闪动，因此在下方布局始终禁用。 */\r\n.dy-comment-layout-bottom :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {\r\n  transition: none !important;\r\n  animation: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer {\r\n  width: 100% !important;\r\n  height: var(--dy-comment-player-height) !important;\r\n  max-height: var(--dy-comment-player-height) !important;\r\n  min-height: 0 !important;\r\n  transition: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer :is(.basePlayerContainer, .xgplayer) {\r\n  height: 100% !important;\r\n  max-height: 100% !important;\r\n  min-height: 0 !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer video {\r\n  width: 100% !important;\r\n  height: 100% !important;\r\n  max-width: 100% !important;\r\n  max-height: 100% !important;\r\n  object-fit: contain !important;\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n  z-index: 3 !important;\r\n  /* 原生章节面板在右侧打开时通过 translateX(-100%) 移入视口；\r\n     下方布局已经将其定位到 left: 0，必须取消该位移，否则会整块滑出左边界。 */\r\n  transform: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom > .dy-layout-picker {\r\n  top: calc(var(--dy-comment-player-height) + 9px);\r\n}\r\n";
+    "/* 只调整当前展开的侧栏，避免章节要点激活时把隐藏的评论面板也拉出来。 */\r\n.dy-comment-layout-bottom {\r\n  --dy-comment-player-height: 40%;\r\n  --dy-comment-panel-height: 60%;\r\n}\r\n\r\n/* 在测量原生打开/关闭状态时禁止宽度过渡，避免读取到上一帧的动画宽度。 */\r\n.dy-comment-layout-measuring :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {\r\n  transition: none !important;\r\n  animation: none !important;\r\n}\r\n\r\n/* 原生侧栏用宽度和位移动画从右侧展开；下方布局中的同步测量会反复重启这些\r\n   过渡，造成评论区宽度卡住或章节面板不停闪动，因此在下方布局始终禁用。 */\r\n.dy-comment-layout-bottom :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {\r\n  transition: none !important;\r\n  animation: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer {\r\n  width: 100% !important;\r\n  height: var(--dy-comment-player-height) !important;\r\n  max-height: var(--dy-comment-player-height) !important;\r\n  min-height: 0 !important;\r\n  transition: none !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer :is(.basePlayerContainer, .xgplayer) {\r\n  height: 100% !important;\r\n  max-height: 100% !important;\r\n  min-height: 0 !important;\r\n}\r\n\r\n.dy-comment-layout-bottom .playerContainer video {\r\n  width: 100% !important;\r\n  height: 100% !important;\r\n  max-width: 100% !important;\r\n  max-height: 100% !important;\r\n  object-fit: contain !important;\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n}\r\n\r\n.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {\r\n  position: absolute !important;\r\n  width: 100% !important;\r\n  height: var(--dy-comment-panel-height) !important;\r\n  max-height: var(--dy-comment-panel-height) !important;\r\n  min-height: 0 !important;\r\n  left: 0 !important;\r\n  right: 0 !important;\r\n  top: auto !important;\r\n  bottom: 0 !important;\r\n  background-color: rgba(0, 0, 0, 0.9);\r\n  z-index: 3 !important;\r\n  /* 原生章节面板在右侧打开时通过 translateX(-100%) 移入视口；\r\n     下方布局已经将其定位到 left: 0，必须取消该位移，否则会整块滑出左边界。 */\r\n  transform: none !important;\r\n}\r\n\r\n/* 到达评论列表/章节内容边界时不继续滚动外层视频列表。 */\r\n.dy-comment-layout-bottom.dy-comment-panel-open .comment-mainContent,\r\n.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoCard {\r\n  overscroll-behavior-y: contain;\r\n}\r\n\r\n.dy-comment-layout-bottom > .dy-layout-picker {\r\n  top: calc(var(--dy-comment-player-height) + 9px);\r\n}\r\n";
   var ROOT_SELECTOR = '#sliderVideo[data-e2e="feed-active-video"], #slideMode[data-e2e="feed-active-video"]';
   var FEED_ROOT_SELECTOR = "#sliderVideo, #slideMode";
   var SIDE_CARD_SELECTOR = "#videoSideCard, #videoSideBar";
@@ -29939,6 +29939,37 @@
         }
         settlePrewarm();
       };
+      const onWheel = (event) => {
+        const $active = document.querySelector(ROOT_SELECTOR);
+        const $target = event.target;
+        if ($active) {
+          const $panel =
+            $target instanceof Element ? $target.closest(SIDE_CARD_SELECTOR + ", " + CHAPTER_SELECTOR) : null;
+          let overPanel = Boolean($panel && $active.contains($panel));
+          if (!overPanel && $active.classList.contains(BOTTOM_CLASS)) {
+            const $bottomPanel = $active.classList.contains(COMMENT_CLASS)
+              ? [...$active.querySelectorAll(SIDE_CARD_SELECTOR)].find(($el) => $el.querySelector("#relatedVideoCard"))
+              : $active.classList.contains(CHAPTER_CLASS)
+                ? $active.querySelector(CHAPTER_SELECTOR)
+                : null;
+            if ($bottomPanel) {
+              const rect = $bottomPanel.getBoundingClientRect();
+              overPanel =
+                rect.width > 0 &&
+                rect.height > 0 &&
+                event.clientX >= rect.left &&
+                event.clientX <= rect.right &&
+                event.clientY >= rect.top &&
+                event.clientY <= rect.bottom;
+            }
+          }
+          if (overPanel) {
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
+        prewarmNextVideo(event);
+      };
       const onKeyDown = (event) => {
         if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]")) return;
         if (["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(event.key)) prewarmNextVideo();
@@ -29963,7 +29994,7 @@
       if (document.documentElement) startObserver();
       else document.addEventListener("DOMContentLoaded", startObserver, { once: true });
       document.addEventListener("click", onClick, true);
-      window.addEventListener("wheel", prewarmNextVideo, {
+      window.addEventListener("wheel", onWheel, {
         capture: true,
         passive: true,
       });
@@ -29979,7 +30010,7 @@
           observer.disconnect();
           document.removeEventListener("DOMContentLoaded", startObserver);
           document.removeEventListener("click", onClick, true);
-          window.removeEventListener("wheel", prewarmNextVideo, true);
+          window.removeEventListener("wheel", onWheel, true);
           window.removeEventListener("keydown", onKeyDown, true);
           document.removeEventListener("transitionend", onTransitionEnd, true);
           window.clearInterval(intervalId);
