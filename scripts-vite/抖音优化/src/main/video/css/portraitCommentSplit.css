@@ -69,6 +69,12 @@
   transform: none !important;
 }
 
+/* 到达评论列表/章节内容边界时不继续滚动外层视频列表。 */
+.dy-comment-layout-bottom.dy-comment-panel-open .comment-mainContent,
+.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoCard {
+  overscroll-behavior-y: contain;
+}
+
 .dy-comment-layout-bottom > .dy-layout-picker {
   top: calc(var(--dy-comment-player-height) + 9px);
 }

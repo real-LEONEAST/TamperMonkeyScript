@@ -297,6 +297,43 @@ export const DouYinVideoPortraitCommentSplit = {
       }
       settlePrewarm();
     };
+    const onWheel = (event: WheelEvent) => {
+      const $active = document.querySelector<HTMLElement>(ROOT_SELECTOR);
+      const $target = event.target;
+      if ($active) {
+        // 抖音在外层监听滚轮以切换视频；评论/章节面板里的滚轮只应滚动面板。
+        const $panel =
+          $target instanceof Element ? $target.closest(SIDE_CARD_SELECTOR + ", " + CHAPTER_SELECTOR) : null;
+        let overPanel = Boolean($panel && $active.contains($panel));
+
+        // 下方布局的空白、滚动条和浮层可能不属于面板 DOM，按实际可见区域兜底。
+        if (!overPanel && $active.classList.contains(BOTTOM_CLASS)) {
+          const $bottomPanel = $active.classList.contains(COMMENT_CLASS)
+            ? [...$active.querySelectorAll<HTMLElement>(SIDE_CARD_SELECTOR)].find(($el) =>
+                $el.querySelector("#relatedVideoCard")
+              )
+            : $active.classList.contains(CHAPTER_CLASS)
+              ? $active.querySelector<HTMLElement>(CHAPTER_SELECTOR)
+              : null;
+          if ($bottomPanel) {
+            const rect = $bottomPanel.getBoundingClientRect();
+            overPanel =
+              rect.width > 0 &&
+              rect.height > 0 &&
+              event.clientX >= rect.left &&
+              event.clientX <= rect.right &&
+              event.clientY >= rect.top &&
+              event.clientY <= rect.bottom;
+          }
+        }
+        if (overPanel) {
+          // 不阻止默认滚动，只截断传播给视频切换器的 wheel 事件。
+          event.stopImmediatePropagation();
+          return;
+        }
+      }
+      prewarmNextVideo(event);
+    };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLElement && event.target.closest("input, textarea, [contenteditable]")) return;
       if (["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(event.key)) prewarmNextVideo();
@@ -326,7 +363,7 @@ export const DouYinVideoPortraitCommentSplit = {
     if (document.documentElement) startObserver();
     else document.addEventListener("DOMContentLoaded", startObserver, { once: true });
     document.addEventListener("click", onClick, true);
-    window.addEventListener("wheel", prewarmNextVideo, { capture: true, passive: true });
+    window.addEventListener("wheel", onWheel, { capture: true, passive: true });
     window.addEventListener("keydown", onKeyDown, true);
     document.addEventListener("transitionend", onTransitionEnd, true);
     window.addEventListener("resize", scheduleUpdate, { passive: true });
@@ -340,7 +377,7 @@ export const DouYinVideoPortraitCommentSplit = {
         observer.disconnect();
         document.removeEventListener("DOMContentLoaded", startObserver);
         document.removeEventListener("click", onClick, true);
-        window.removeEventListener("wheel", prewarmNextVideo, true);
+        window.removeEventListener("wheel", onWheel, true);
         window.removeEventListener("keydown", onKeyDown, true);
         document.removeEventListener("transitionend", onTransitionEnd, true);
         window.clearInterval(intervalId);
