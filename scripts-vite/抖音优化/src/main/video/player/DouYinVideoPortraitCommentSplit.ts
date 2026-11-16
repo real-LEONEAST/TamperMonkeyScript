@@ -20,6 +20,7 @@ const LAYOUT_CLASSES = [BOTTOM_CLASS, COMMENT_CLASS, CHAPTER_CLASS, PREWARM_CLAS
 const LAYOUT_CLASS_SET = new Set(LAYOUT_CLASSES.concat(MEASURING_CLASS));
 const LAYOUT_KEY = "dy-video-commentLayout";
 const SEARCH_PATH_PATTERN = /(?:^|\/)search(?:\/|$)/;
+const VIDEO_MODAL_SELECTOR = '[data-e2e="modal-video-container"]';
 type PanelKind = "chapter" | "comment";
 const PANEL_SWITCH_HOLD_MS = 450;
 
@@ -34,6 +35,7 @@ export const DouYinVideoPortraitCommentSplit = {
     const styles = [addStyle(splitCSS), addStyle(pickerCSS)];
     const pickers = new Map<HTMLElement, ReturnType<typeof createLayoutPicker>>();
     const prewarmedRoots = new Map<HTMLElement, { kind: PanelKind; since: number }>();
+    const panelStateCache = new WeakMap<HTMLElement, { signature: string; kind: PanelKind | null }>();
 
     // 忽略测量及布局调整自身产生的 class 变更，仍监听抖音对原生 class 的修改。
     const nativeClassNames = (classes: string) =>
@@ -66,12 +68,25 @@ export const DouYinVideoPortraitCommentSplit = {
       const $player = $root.querySelector<HTMLElement>(".playerContainer");
       if (!$player?.querySelector("video")) return null;
 
+      // 信息流会监听播放器尺寸变化；反复移除分屏样式来读取原生宽度，可能让
+      // 推荐/关注/朋友页的响应式布局反复重算。原生开关标识未变时复用检测结果。
+      const signature = [
+        nativeClassNames($root.className),
+        ...[...$root.querySelectorAll<HTMLElement>(`${SIDE_CARD_SELECTOR}, ${CHAPTER_SELECTOR}`)].map(
+          ($panel) =>
+            `${$panel.id}:${$panel.className}:${$panel.getAttribute("style")}:${$panel.getAttribute("aria-hidden")}:${$panel.getAttribute("data-state")}:${$panel.querySelector("#relatedVideoCard, #chapterVideoCard")?.id ?? ""}`
+        ),
+      ].join("|");
+      const cached = panelStateCache.get($root);
+      if (cached?.signature === signature) return cached.kind;
+
       // 侧栏一旦被 CSS 撑满，直接读宽度就会把“已关闭”误判为“已打开”。
       // 侧栏宽度与播放器的原生布局相关，须一起恢复后才能正确测得打开状态。
       // 在同一个 JS 任务内完成测量并还原，浏览器不会绘制中间状态。
       const applied = LAYOUT_CLASSES.filter((name) => $root.classList.contains(name));
       $root.classList.add(MEASURING_CLASS);
       $root.classList.remove(...LAYOUT_CLASSES);
+      let kind: PanelKind | null = null;
       try {
         const $chapter = $root.querySelector<HTMLElement>(CHAPTER_SELECTOR);
         const chapterOpen = Boolean($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root));
@@ -79,21 +94,36 @@ export const DouYinVideoPortraitCommentSplit = {
           ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
         );
         // 原生评论和章节可能在切换期间同时存在，优先使用刚点击的面板。
-        if (preferred === "chapter" && chapterOpen) return "chapter";
-        if (preferred === "comment" && commentOpen) return "comment";
-        if (chapterOpen) return "chapter";
-        return commentOpen ? "comment" : null;
+        if (preferred === "chapter" && chapterOpen) kind = "chapter";
+        else if (preferred === "comment" && commentOpen) kind = "comment";
+        else if (chapterOpen) kind = "chapter";
+        else if (commentOpen) kind = "comment";
       } finally {
         $root.classList.add(...applied);
         $root.classList.remove(MEASURING_CLASS);
       }
+      panelStateCache.set($root, { signature, kind });
+      return kind;
     };
 
-    const isInlineSearch = () =>
+    const isSearchPage = () =>
       SEARCH_PATH_PATTERN.test(window.location.pathname) ||
       document.querySelector("#search-body-container, #search-result-container") != null;
 
-    const isUnsupportedPage = () => DouYinRouter.isLive() || isInlineSearch();
+    // 搜索卡片内播放不改布局；点进视频后有独立的 modal-video-container。
+    // 搜索列表下方还保留着尺寸为 0 的旧信息流，不能误当成当前播放器。
+    const isEligibleRoot = ($root: HTMLElement) => {
+      const rect = $root.getBoundingClientRect();
+      return (
+        rect.width >= 200 &&
+        rect.height >= 150 &&
+        (!isSearchPage() || $root.closest(VIDEO_MODAL_SELECTOR) != null)
+      );
+    };
+    const getActiveRoots = () =>
+      [...document.querySelectorAll<HTMLElement>(ROOT_SELECTOR)].filter(isEligibleRoot);
+
+    const isUnsupportedPage = () => DouYinRouter.isLive();
     const syncPreference = () => !isUnsupportedPage() && resolveLayoutMode(getLayoutMode(LAYOUT_KEY)) === "bottom";
     const clearPicker = ($root: HTMLElement) => {
       $root.classList.remove(...LAYOUT_CLASSES, MEASURING_CLASS);
@@ -115,7 +145,7 @@ export const DouYinVideoPortraitCommentSplit = {
       }
 
       if (!skip)
-        for (const $root of document.querySelectorAll<HTMLElement>(ROOT_SELECTOR)) {
+        for (const $root of getActiveRoots()) {
           const pending = prewarmedRoots.get($root);
           const preferredPanel =
             pending?.kind ??
@@ -209,8 +239,15 @@ export const DouYinVideoPortraitCommentSplit = {
       if (hasRelevantChange) {
         // 滚动期间如果抖音才创建下一视频，也在首次绘制前预热它。
         if (prewarmTimerId !== null && navigating) {
+          const $active = getActiveRoots()[0];
+          const $modal = $active?.closest(VIDEO_MODAL_SELECTOR) ?? null;
           for (const $root of document.querySelectorAll<HTMLElement>(FEED_ROOT_SELECTOR)) {
-            if (!prewarmedRoots.has($root)) addPrewarmRoot($root, "comment");
+            if (
+              $root !== $active &&
+              isEligibleRoot($root) &&
+              $root.closest(VIDEO_MODAL_SELECTOR) === $modal &&
+              !prewarmedRoots.has($root)
+            ) addPrewarmRoot($root, "comment");
           }
         }
         scheduleUpdate();
@@ -250,7 +287,7 @@ export const DouYinVideoPortraitCommentSplit = {
       const $target = event.target;
       if (!($target instanceof Element)) return;
       const $root = $target.closest<HTMLElement>(FEED_ROOT_SELECTOR);
-      if (syncPreference() && $root) {
+      if (syncPreference() && $root && isEligibleRoot($root)) {
         // 关闭动作不应被短暂的预热状态重新打开。
         if ($target.closest("#chapterVideoCard svg.GMpBYXh8, #relatedVideoCard svg.vuTeHwH2")) {
           prewarmedRoots.delete($root);
@@ -281,7 +318,7 @@ export const DouYinVideoPortraitCommentSplit = {
     const prewarmNextVideo = (event?: WheelEvent) => {
       if (!syncPreference()) return;
       if (event?.target instanceof Element && event.target.closest("#relatedVideoCard, #chapterVideoCard")) return;
-      const $active = document.querySelector<HTMLElement>(ROOT_SELECTOR);
+      const $active = getActiveRoots()[0];
       if (
         !$active ||
         getOpenedSidePanel($active, $active.classList.contains(COMMENT_CLASS) ? "comment" : undefined) !== "comment"
@@ -291,14 +328,19 @@ export const DouYinVideoPortraitCommentSplit = {
 
       // 抖音会先挂载下一视频的右侧卡片，随后才把 feed-video 改成 feed-active-video。
       // 滚动事件在切换前触发，把分屏样式预先给已预加载的相邻视频。
+      const $modal = $active.closest(VIDEO_MODAL_SELECTOR);
       for (const $root of document.querySelectorAll<HTMLElement>(FEED_ROOT_SELECTOR)) {
-        if ($root === $active) continue;
+        if (
+          $root === $active ||
+          !isEligibleRoot($root) ||
+          $root.closest(VIDEO_MODAL_SELECTOR) !== $modal
+        ) continue;
         addPrewarmRoot($root, "comment");
       }
       settlePrewarm();
     };
     const onWheel = (event: WheelEvent) => {
-      const $active = document.querySelector<HTMLElement>(ROOT_SELECTOR);
+      const $active = getActiveRoots()[0];
       const $target = event.target;
       if ($active) {
         // 抖音在外层监听滚轮以切换视频；评论/章节面板里的滚轮只应滚动面板。
