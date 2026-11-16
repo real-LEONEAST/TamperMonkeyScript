@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.15.7
+// @version      2026.11.16.8
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -29706,6 +29706,7 @@
   var LAYOUT_CLASS_SET = new Set(LAYOUT_CLASSES.concat(MEASURING_CLASS));
   var LAYOUT_KEY$1 = "dy-video-commentLayout";
   var SEARCH_PATH_PATTERN = /(?:^|\/)search(?:\/|$)/;
+  var VIDEO_MODAL_SELECTOR = '[data-e2e="modal-video-container"]';
   var PANEL_SWITCH_HOLD_MS = 450;
   var DouYinVideoPortraitCommentSplit = {
     init() {
@@ -29713,6 +29714,7 @@
       const styles = [addStyle(portraitCommentSplit_default), addStyle(layoutPicker_default)];
       const pickers = new Map();
       const prewarmedRoots = new Map();
+      const panelStateCache = new WeakMap();
       const nativeClassNames = (classes) =>
         classes
           .split(/\s+/)
@@ -29737,28 +29739,50 @@
       };
       const getOpenedSidePanel = ($root, preferred) => {
         if (!$root.querySelector(".playerContainer")?.querySelector("video")) return null;
+        const signature = [
+          nativeClassNames($root.className),
+          ...[...$root.querySelectorAll(`${SIDE_CARD_SELECTOR}, ${CHAPTER_SELECTOR}`)].map(
+            ($panel) =>
+              `${$panel.id}:${$panel.className}:${$panel.getAttribute("style")}:${$panel.getAttribute("aria-hidden")}:${$panel.getAttribute("data-state")}:${$panel.querySelector("#relatedVideoCard, #chapterVideoCard")?.id ?? ""}`
+          ),
+        ].join("|");
+        const cached = panelStateCache.get($root);
+        if (cached?.signature === signature) return cached.kind;
         const applied = LAYOUT_CLASSES.filter((name) => $root.classList.contains(name));
         $root.classList.add(MEASURING_CLASS);
         $root.classList.remove(...LAYOUT_CLASSES);
+        let kind = null;
         try {
           const $chapter = $root.querySelector(CHAPTER_SELECTOR);
           const chapterOpen = Boolean($chapter?.querySelector("#chapterVideoCard") && isOpenedPanel($chapter, $root));
           const commentOpen = [...$root.querySelectorAll(SIDE_CARD_SELECTOR)].some(
             ($panel) => $panel.querySelector("#relatedVideoCard") && isOpenedPanel($panel, $root)
           );
-          if (preferred === "chapter" && chapterOpen) return "chapter";
-          if (preferred === "comment" && commentOpen) return "comment";
-          if (chapterOpen) return "chapter";
-          return commentOpen ? "comment" : null;
+          if (preferred === "chapter" && chapterOpen) kind = "chapter";
+          else if (preferred === "comment" && commentOpen) kind = "comment";
+          else if (chapterOpen) kind = "chapter";
+          else if (commentOpen) kind = "comment";
         } finally {
           $root.classList.add(...applied);
           $root.classList.remove(MEASURING_CLASS);
         }
+        panelStateCache.set($root, {
+          signature,
+          kind,
+        });
+        return kind;
       };
-      const isInlineSearch = () =>
+      const isSearchPage = () =>
         SEARCH_PATH_PATTERN.test(window.location.pathname) ||
         document.querySelector("#search-body-container, #search-result-container") != null;
-      const isUnsupportedPage = () => DouYinRouter.isLive() || isInlineSearch();
+      const isEligibleRoot = ($root) => {
+        const rect = $root.getBoundingClientRect();
+        return (
+          rect.width >= 200 && rect.height >= 150 && (!isSearchPage() || $root.closest(VIDEO_MODAL_SELECTOR) != null)
+        );
+      };
+      const getActiveRoots = () => [...document.querySelectorAll(ROOT_SELECTOR)].filter(isEligibleRoot);
+      const isUnsupportedPage = () => DouYinRouter.isLive();
       const syncPreference = () => !isUnsupportedPage() && resolveLayoutMode(getLayoutMode(LAYOUT_KEY$1)) === "bottom";
       const clearPicker = ($root) => {
         $root.classList.remove(...LAYOUT_CLASSES, MEASURING_CLASS);
@@ -29775,7 +29799,7 @@
           navigating = false;
         }
         if (!skip)
-          for (const $root of document.querySelectorAll(ROOT_SELECTOR)) {
+          for (const $root of getActiveRoots()) {
             const pending = prewarmedRoots.get($root);
             const preferredPanel =
               pending?.kind ??
@@ -29857,8 +29881,16 @@
           })
         ) {
           if (prewarmTimerId !== null && navigating) {
+            const $active = getActiveRoots()[0];
+            const $modal = $active?.closest(VIDEO_MODAL_SELECTOR) ?? null;
             for (const $root of document.querySelectorAll(FEED_ROOT_SELECTOR))
-              if (!prewarmedRoots.has($root)) addPrewarmRoot($root, "comment");
+              if (
+                $root !== $active &&
+                isEligibleRoot($root) &&
+                $root.closest(VIDEO_MODAL_SELECTOR) === $modal &&
+                !prewarmedRoots.has($root)
+              )
+                addPrewarmRoot($root, "comment");
           }
           scheduleUpdate();
         }
@@ -29898,7 +29930,7 @@
         const $target = event.target;
         if (!($target instanceof Element)) return;
         const $root = $target.closest(FEED_ROOT_SELECTOR);
-        if (syncPreference() && $root) {
+        if (syncPreference() && $root && isEligibleRoot($root)) {
           if ($target.closest("#chapterVideoCard svg.GMpBYXh8, #relatedVideoCard svg.vuTeHwH2")) {
             prewarmedRoots.delete($root);
             $root.classList.remove(PREWARM_CLASS);
@@ -29926,21 +29958,22 @@
       const prewarmNextVideo = (event) => {
         if (!syncPreference()) return;
         if (event?.target instanceof Element && event.target.closest("#relatedVideoCard, #chapterVideoCard")) return;
-        const $active = document.querySelector(ROOT_SELECTOR);
+        const $active = getActiveRoots()[0];
         if (
           !$active ||
           getOpenedSidePanel($active, $active.classList.contains(COMMENT_CLASS) ? "comment" : void 0) !== "comment"
         )
           return;
         navigating = true;
+        const $modal = $active.closest(VIDEO_MODAL_SELECTOR);
         for (const $root of document.querySelectorAll(FEED_ROOT_SELECTOR)) {
-          if ($root === $active) continue;
+          if ($root === $active || !isEligibleRoot($root) || $root.closest(VIDEO_MODAL_SELECTOR) !== $modal) continue;
           addPrewarmRoot($root, "comment");
         }
         settlePrewarm();
       };
       const onWheel = (event) => {
-        const $active = document.querySelector(ROOT_SELECTOR);
+        const $active = getActiveRoots()[0];
         const $target = event.target;
         if ($active) {
           const $panel =
