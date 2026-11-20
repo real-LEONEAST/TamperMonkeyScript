@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.16.8
+// @version      2026.11.20.9
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -6183,6 +6183,10 @@ div:has(> a[download*="douyin-downloade"]):has(+.userMenuPanelShadowAnimation),\
   object-fit: contain !important;\r
 }\r
 \r
+/* 关注/朋友信息流会先展开外层 #videoSideCard，随后才挂载 #relatedVideoCard。\r
+   直接定位外层面板，让 click 捕获阶段的预热样式立即生效，避免先在右侧打开再跳到下方。\r
+   其它使用 #videoSideBar 的页面仍通过 :has(#relatedVideoCard) 选择真正的评论面板。 */\r
+.dy-comment-layout-bottom.dy-comment-panel-open > #videoSideCard,\r
 .dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {\r
   position: absolute !important;\r
   width: 100% !important;\r
@@ -6194,6 +6198,12 @@ div:has(> a[download*="douyin-downloade"]):has(+.userMenuPanelShadowAnimation),\
   top: auto !important;\r
   bottom: 0 !important;\r
   background-color: rgba(0, 0, 0, 0.9);\r
+}\r
+\r
+/* React 尚未挂载评论内容时，预定位的空侧栏不能遮挡视频或拦截点击。 */\r
+.dy-comment-layout-bottom.dy-comment-panel-open > #videoSideCard:not(:has(#relatedVideoCard)) {\r
+  background-color: transparent !important;\r
+  pointer-events: none !important;\r
 }\r
 \r
 .dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {\r
