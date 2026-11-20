@@ -39,6 +39,10 @@
   object-fit: contain !important;
 }
 
+/* 关注/朋友信息流会先展开外层 #videoSideCard，随后才挂载 #relatedVideoCard。
+   直接定位外层面板，让 click 捕获阶段的预热样式立即生效，避免先在右侧打开再跳到下方。
+   其它使用 #videoSideBar 的页面仍通过 :has(#relatedVideoCard) 选择真正的评论面板。 */
+.dy-comment-layout-bottom.dy-comment-panel-open > #videoSideCard,
 .dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
   position: absolute !important;
   width: 100% !important;
@@ -50,6 +54,12 @@
   top: auto !important;
   bottom: 0 !important;
   background-color: rgba(0, 0, 0, 0.9);
+}
+
+/* React 尚未挂载评论内容时，预定位的空侧栏不能遮挡视频或拦截点击。 */
+.dy-comment-layout-bottom.dy-comment-panel-open > #videoSideCard:not(:has(#relatedVideoCard)) {
+  background-color: transparent !important;
+  pointer-events: none !important;
 }
 
 .dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {
