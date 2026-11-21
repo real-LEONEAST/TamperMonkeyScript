@@ -6,6 +6,7 @@ import { ReactUtils } from "@components/utils/ReactUtils";
 import Qmsg from "qmsg";
 import { DouYinVideoPlayer } from "../video/player/DouYinVideoPlayer";
 import { DouYinLiveBlock } from "./DouYinLiveBlock";
+import { DouYinLivePortraitSplit } from "./DouYinLivePortraitSplit";
 import { DouYinLiveDanmaku } from "./DouYinLiveDanmaku";
 import { DouYinLiveShortCut } from "./DouYinLiveShortCut";
 import { DouYinLivePlayer } from "./player/DouYinLivePlayer";
@@ -65,6 +66,9 @@ export const DouYinLive = {
     DouYinLiveShortCut.init();
     DouYinLiveDanmaku.init();
     DouYinLivePlayer.init();
+    Panel.onceExec("dy-live-layout-controller", () => {
+      DouYinLivePortraitSplit.init();
+    });
     // Panel.execMenu("live-unlockImageQuality", () => {
     // 	this.unlockImageQuality();
     // });

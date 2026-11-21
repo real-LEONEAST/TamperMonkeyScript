@@ -18,6 +18,7 @@ import { DouYinVideoElementAutoHide, DouYinVideoElementAutoHideInjectAttr } from
 import { DouYinVideoFilter } from "../filter/DouYinVideoFilter";
 import { DouYinVideoFilterBase } from "../filter/DouYinVideoFilterBase";
 import { DouYinVideoMobileMode } from "./DouYinVideoMobileMode";
+import { DouYinVideoPortraitCommentSplit } from "./DouYinVideoPortraitCommentSplit";
 import { DouYinVideoPlayerBlockMouseHoverTip } from "./DouYinVideoPlayerBlockMouseHoverTip";
 import { DouYinVideoPlayerShortCut } from "./DouYinVideoPlayerShortCut";
 
@@ -32,11 +33,24 @@ export const DouYinVideoPlayer = {
   },
   init() {
     DouYinVideoBlock.init();
+    // 竖屏桌面窗口中，抖音会将右侧工具栏放大近两倍；限制缩放以免遮挡画面。
+    // 保留后续“禁用右侧工具栏 transform”设置的覆盖能力。
+    addStyle(/*css*/ `
+      @media screen and (orientation: portrait) and (min-width: 551px) {
+        .positionBox {
+          transform: scale(0.95) !important;
+          transform-origin: right bottom !important;
+        }
+      }
+    `);
     Panel.onceExec("dy-short-cut", () => {
       DouYinVideoPlayerShortCut.init();
     });
     DouYinVideoPlayerBlockMouseHoverTip.init();
     DouYinVideoMobileMode.init();
+    Panel.onceExec("dy-video-commentLayout", () => {
+      DouYinVideoPortraitCommentSplit.init();
+    });
     Panel.execMenuOnce("fullScreen", (config) => {
       return this.fullScreen(config.value);
     });

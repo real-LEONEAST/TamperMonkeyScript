@@ -1,22 +1,90 @@
-@media screen and (orientation: portrait) {
-  #sliderVideo[data-e2e="feed-active-video"],
-  #slideMode[data-e2e="feed-active-video"] {
-    --comment-height: 60%;
-  }
-  /* 当前观看的视频 */
-  [data-e2e="feed-active-video"]:has([data-comment-show]) .playerContainer {
-    height: calc(100% - var(--comment-height)) !important;
-  }
+/* 只调整当前展开的侧栏，避免章节要点激活时把隐藏的评论面板也拉出来。 */
+.dy-comment-layout-bottom {
+  --dy-comment-player-height: 40%;
+  --dy-comment-panel-height: 60%;
 }
-/* 如果是小屏，则屏蔽以下组件 */
-@media screen and (orientation: portrait) and (max-height: 1024px) {
-  /* 评论区打开状态 */
-  [data-e2e="feed-active-video"]:has([data-comment-show]) {
-    /* 右侧工具栏 */
-    & .playerContainer .positionBox,
-    /* 底部信息区域 */
-    & .playerContainer .player-position-box-bottom {
-      display: none !important;
-    }
-  }
+
+/* 在测量原生打开/关闭状态时禁止宽度过渡，避免读取到上一帧的动画宽度。 */
+.dy-comment-layout-measuring :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* 原生侧栏用宽度和位移动画从右侧展开；下方布局中的同步测量会反复重启这些
+   过渡，造成评论区宽度卡住或章节面板不停闪动，因此在下方布局始终禁用。 */
+.dy-comment-layout-bottom :is(#videoSideCard, #videoSideBar, #chapterVideoSideCard) {
+  transition: none !important;
+  animation: none !important;
+}
+
+.dy-comment-layout-bottom .playerContainer {
+  width: 100% !important;
+  height: var(--dy-comment-player-height) !important;
+  max-height: var(--dy-comment-player-height) !important;
+  min-height: 0 !important;
+  transition: none !important;
+}
+
+.dy-comment-layout-bottom .playerContainer :is(.basePlayerContainer, .xgplayer) {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+}
+
+.dy-comment-layout-bottom .playerContainer video {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* 关注/朋友信息流会先展开外层 #videoSideCard，随后才挂载 #relatedVideoCard。
+   直接定位外层面板，让 click 捕获阶段的预热样式立即生效，避免先在右侧打开再跳到下方。
+   其它使用 #videoSideBar 的页面仍通过 :has(#relatedVideoCard) 选择真正的评论面板。 */
+.dy-comment-layout-bottom.dy-comment-panel-open > #videoSideCard,
+.dy-comment-layout-bottom.dy-comment-panel-open :is(#videoSideCard, #videoSideBar):has(#relatedVideoCard) {
+  position: absolute !important;
+  width: 100% !important;
+  height: var(--dy-comment-panel-height) !important;
+  max-height: var(--dy-comment-panel-height) !important;
+  min-height: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.9);
+}
+
+/* React 尚未挂载评论内容时，预定位的空侧栏不能遮挡视频或拦截点击。 */
+.dy-comment-layout-bottom.dy-comment-panel-open > #videoSideCard:not(:has(#relatedVideoCard)) {
+  background-color: transparent !important;
+  pointer-events: none !important;
+}
+
+.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoSideCard {
+  position: absolute !important;
+  width: 100% !important;
+  height: var(--dy-comment-panel-height) !important;
+  max-height: var(--dy-comment-panel-height) !important;
+  min-height: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: auto !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.9);
+  z-index: 3 !important;
+  /* 原生章节面板在右侧打开时通过 translateX(-100%) 移入视口；
+     下方布局已经将其定位到 left: 0，必须取消该位移，否则会整块滑出左边界。 */
+  transform: none !important;
+}
+
+/* 到达评论列表/章节内容边界时不继续滚动外层视频列表。 */
+.dy-comment-layout-bottom.dy-comment-panel-open .comment-mainContent,
+.dy-comment-layout-bottom.dy-chapter-layout-open #chapterVideoCard {
+  overscroll-behavior-y: contain;
+}
+
+.dy-comment-layout-bottom > .dy-layout-picker {
+  top: calc(var(--dy-comment-player-height) + 9px);
 }

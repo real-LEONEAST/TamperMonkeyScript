@@ -21,40 +21,20 @@ export const DouYinVideoElementAutoHide = (
 
   const hideCSSText = (__delayTime__ = delayTime.value) => {
     const importantCSSText = opacityIsImportant ? " !important" : "";
-    if (__delayTime__ === 0) {
-      // 直接隐藏
-      return /*css*/ `
-            ${selectors.join(",")}{
-                opacity: 0${importantCSSText};
-                transition: ${__delayTime__ === 0 ? "none !important;" : "opacity .3s linear !important;"}
-
-                &[${opacityHideAttrName}]{
-                    opacity: 0${importantCSSText};
-                }
-                &[${opacityShowAttrName}],
-                &:hover{
-                    opacity: 1${importantCSSText};
-                }
-            }
-            `;
-    } else {
-      // 主动添加隐藏属性才会隐藏
-      return /*css*/ `
-            ${selectors.join(",")}{
-                transition: opacity .3s linear !important;
-
-                &[${opacityHideAttrName}]{
-                    opacity: 0${importantCSSText};
-                }
-                &[${opacityShowAttrName}]{
-                    opacity: 1${importantCSSText};
-                }
-                &:hover{
-                    opacity: 1${importantCSSText};
-                }
-            }
-            `;
-    }
+    // 每个选择器生成独立的平面规则，避免不支持 :has() 或 CSS 嵌套的 Firefox
+    // 将包含 .positionBox 的整组规则一并丢弃。
+    return selectors
+      .map((selector) => {
+        return /*css*/ `
+          ${selector} {
+            ${__delayTime__ === 0 ? `opacity: 0${importantCSSText};` : ""}
+            transition: ${__delayTime__ === 0 ? "none" : "opacity .3s linear"} !important;
+          }
+          ${selector}[${opacityHideAttrName}] { opacity: 0${importantCSSText}; }
+          ${selector}[${opacityShowAttrName}], ${selector}:hover { opacity: 1${importantCSSText}; }
+        `;
+      })
+      .join("\n");
   };
   const $style = addStyle(hideCSSText());
   result.push($style);
@@ -67,13 +47,20 @@ export const DouYinVideoElementAutoHide = (
   const lockFn = new utils.LockFunction(() => {
     /** 视频信息列表 */
     selectors.forEach((selector) => {
-      const $el = $<HTMLElement>(`${selector.trim()}:not([${DouYinVideoElementAutoHideInjectAttr}])`);
+      let $el: HTMLElement | undefined;
+      try {
+        $el = $<HTMLElement>(`${selector.trim()}:not([${DouYinVideoElementAutoHideInjectAttr}])`);
+      } catch {
+        // 某些 Firefox 版本尚不支持直播工具栏的 :has() 选择器。
+        return;
+      }
       if (!$el) return;
       if ($el.querySelector(`[${DouYinVideoElementAutoHideInjectAttr}]`)) return;
       if ($el.closest(`[${DouYinVideoElementAutoHideInjectAttr}]`)) return;
       $el.setAttribute(DouYinVideoElementAutoHideInjectAttr, "");
 
       let timeId: number = 0;
+      let pointerInside = false;
       /**
        * 显示
        */
@@ -81,12 +68,12 @@ export const DouYinVideoElementAutoHide = (
         clearTimeout(timeId);
         if (delayTime.value === 0) {
           // 默认隐藏的，强制显示
-          $el.setAttribute(opacityShowAttrName, "");
+          if (!$el.hasAttribute(opacityShowAttrName)) $el.setAttribute(opacityShowAttrName, "");
         } else {
           // 移除隐藏
-          $el.removeAttribute(opacityHideAttrName);
+          if ($el.hasAttribute(opacityHideAttrName)) $el.removeAttribute(opacityHideAttrName);
           // 添加强制显示
-          $el.setAttribute(opacityShowAttrName, "");
+          if (!$el.hasAttribute(opacityShowAttrName)) $el.setAttribute(opacityShowAttrName, "");
         }
       };
       /**
@@ -94,27 +81,58 @@ export const DouYinVideoElementAutoHide = (
        */
       const hide = (isEnableDelayTime: boolean = false) => {
         if (isEnableDelayTime) {
-          timeId = setTimeout(() => {
-            hide(!isEnableDelayTime);
-          }, delayTime.value);
+          if (pointerInside) return;
+          clearTimeout(timeId);
+          timeId = window.setTimeout(() => hide(false), delayTime.value);
           return;
         }
+        // Firefox 的 :hover 状态可能在工具栏重绘时短暂失效。
+        if (pointerInside || $el.matches(":hover")) return;
         if (delayTime.value === 0) {
           // 这个是默认隐藏，移除显示的
-          $el.removeAttribute(opacityShowAttrName);
+          if ($el.hasAttribute(opacityShowAttrName)) $el.removeAttribute(opacityShowAttrName);
         } else {
           // 隐藏
-          $el.setAttribute(opacityHideAttrName, "");
+          if (!$el.hasAttribute(opacityHideAttrName)) $el.setAttribute(opacityHideAttrName, "");
           // 移除强制显示
-          $el.removeAttribute(opacityShowAttrName);
+          if ($el.hasAttribute(opacityShowAttrName)) $el.removeAttribute(opacityShowAttrName);
         }
       };
-      // const showListener = DOMUtils.on($el, ["mouseenter", "touchstart"], () => {
-      //   show();
-      // });
-      // const hideListener = DOMUtils.on($el, ["mouseleave", "touchend", "touchcancel"], () => {
-      //   hide();
-      // });
+      // 监听所属播放器和工具栏自身；工具栏内部移动时不要重启隐藏倒计时。
+      const $player = $el.closest<HTMLElement>(
+        '#sliderVideo, #slideMode, [data-e2e="video-detail"], .douyin-player, .playerContainer'
+      );
+      let lastMove = 0;
+      const onPointerMove = (event: PointerEvent) => {
+        const now = Date.now();
+        if (now - lastMove < 150) return;
+        lastMove = now;
+        const rect = $el.getBoundingClientRect();
+        pointerInside =
+          event.clientX >= rect.left &&
+          event.clientX <= rect.right &&
+          event.clientY >= rect.top &&
+          event.clientY <= rect.bottom;
+        show();
+        if (!pointerInside) hide(true);
+      };
+      const onPointerEnter = () => {
+        pointerInside = true;
+        show();
+      };
+      const onToolbarPointerMove = () => {
+        pointerInside = true;
+        show();
+      };
+      const onPointerLeave = () => {
+        pointerInside = false;
+        show();
+        hide(true);
+      };
+      $player?.addEventListener("pointermove", onPointerMove, { capture: true, passive: true });
+      $el.addEventListener("pointerenter", onPointerEnter);
+      $el.addEventListener("pointermove", onToolbarPointerMove, { passive: true });
+      $el.addEventListener("pointerleave", onPointerLeave);
       const interObserver = new IntersectionObserver(
         (entries) => {
           const intersection = entries[0];
@@ -136,25 +154,36 @@ export const DouYinVideoElementAutoHide = (
       interObserver.observe($el);
 
       result.push(() => {
-        // showListener.off();
-        // hideListener.off();
+        clearTimeout(timeId);
+        $player?.removeEventListener("pointermove", onPointerMove, true);
+        $el.removeEventListener("pointerenter", onPointerEnter);
+        $el.removeEventListener("pointermove", onToolbarPointerMove);
+        $el.removeEventListener("pointerleave", onPointerLeave);
         interObserver.unobserve($el);
         interObserver.disconnect();
       });
     });
   });
+  // 直播聊天的频繁 DOM 更新不需要每次都重新扫描视频控件。
+  let scanTimer: number | null = null;
+  const scheduleScan = () => {
+    if (scanTimer !== null) return;
+    scanTimer = window.setTimeout(() => {
+      scanTimer = null;
+      lockFn.run();
+    }, 250);
+  };
   const observer = utils.mutationObserver(document.body || document.documentElement, {
     config: {
       subtree: true,
       childList: true,
     },
     immediate: true,
-    callback: () => {
-      lockFn.run();
-    },
+    callback: scheduleScan,
   });
 
   result.push(() => {
+    if (scanTimer !== null) window.clearTimeout(scanTimer);
     observer?.disconnect();
   });
 

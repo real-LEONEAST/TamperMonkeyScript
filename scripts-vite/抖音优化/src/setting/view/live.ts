@@ -65,6 +65,18 @@ export const PanelLiveConfig: PopsPanelContentConfig = {
                 ),
                 UISwitch("禁止自动播放", "live-pauseVideo", false),
                 UISwitch("自动关闭聊天室", "dy-live-autoCloseChatRoom", false, void 0, "自动点击关闭聊天室按钮"),
+                UISelect<string>(
+                  "直播聊天区布局",
+                  "dy-live-chatLayout",
+                  "auto",
+                  [
+                    { text: "自动（竖屏下方，横屏右侧）", value: "auto" },
+                    { text: "下方", value: "bottom" },
+                    { text: "右侧", value: "right" },
+                  ],
+                  void 0,
+                  "控制直播画面与聊天区的位置；下方布局支持收起聊天区。与视频布局独立保存"
+                ),
                 UISwitch("禁用鼠标滚轮切换直播间", "live-prevent-wheel-switchLiveRoom"),
                 UISelect("双击video动作", "dy-live-doubleClickAction", "", [
                   {

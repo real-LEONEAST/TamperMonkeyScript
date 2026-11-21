@@ -182,6 +182,18 @@ export const PanelVideoConfig: PopsPanelContentConfig = {
               type: "container",
               text: "",
               views: [
+                UISelect<string>(
+                  "评论与章节布局",
+                  "dy-video-commentLayout",
+                  "auto",
+                  [
+                    { text: "自动（竖屏下方，横屏右侧）", value: "auto" },
+                    { text: "下方", value: "bottom" },
+                    { text: "右侧", value: "right" },
+                  ],
+                  void 0,
+                  "评论区与章节要点共用布局；搜索结果内嵌视频保留右侧布局。与手机模式无关"
+                ),
                 {
                   type: "deepMenu",
                   text: "手机模式",
@@ -191,13 +203,6 @@ export const PanelVideoConfig: PopsPanelContentConfig = {
                       text: "",
                       views: [
                         UISwitch("启用", "mobileMode", false, void 0),
-                        UISwitch(
-                          "自适应评论区",
-                          "changeCommentToBottom",
-                          true,
-                          void 0,
-                          "自动根据浏览器的显示调整评论区的位置"
-                        ),
                         UISwitch(
                           "修复进度条",
                           "repairProgressBar",

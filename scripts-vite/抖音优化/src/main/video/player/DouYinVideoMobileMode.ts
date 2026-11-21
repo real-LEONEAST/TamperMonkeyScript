@@ -8,13 +8,9 @@ import { Panel } from "@components/setting/panel";
 import { GestureBack } from "@components/utils/GestureBack";
 import Qmsg from "qmsg";
 import MobileCSS from "../css/mobile.css?raw";
-import splitCSS from "../css/portraitCommentSplit.css?raw";
 
 export const DouYinVideoMobileMode = {
   init() {
-    Panel.execMenuOnce(["mobileMode", "changeCommentToBottom"], (config) => {
-      return this.changeCommentToBottom();
-    });
     Panel.execMenuOnce(["mobileMode", "dy-video-gestureBackCloseComment"], () => {
       return this.gestureBackCloseComment();
     });
@@ -61,101 +57,6 @@ export const DouYinVideoMobileMode = {
       );
     }
     return result;
-  },
-  /**
-   * 自适应评论区
-   */
-  changeCommentToBottom() {
-    log.info("自适应评论区");
-    const results: (HTMLStyleElement | Function)[] = [
-      /* 2024.5.27 dy更名videoSideBar=>videoSideCard */
-      addStyle(/*css*/ `
-      /* 竖屏样式 */
-      @media screen and (orientation: portrait) {
-         #sliderVideo[data-e2e="feed-active-video"],
-         #slideMode[data-e2e="feed-active-video"]{
-          --comment-height: 75%;
-         }
-        #sliderVideo[data-e2e="feed-video"] #videoSideBar #relatedVideoCard,
-        #sliderVideo[data-e2e="feed-video"] #videoSideCard #relatedVideoCard{
-          display: none !important;
-        }
-        /* 左侧的视频宽度撑满 */
-        #sliderVideo[data-e2e] .playerContainer,
-        #slideMode[data-e2e] .playerContainer{
-          width: 100% !important;
-        }
-        /* 右侧的评论区宽度撑满，position使用absolute */
-        #sliderVideo[data-e2e="feed-active-video"] #videoSideBar:has(#relatedVideoCard),
-        #slideMode[data-e2e="feed-active-video"] #videoSideBar:has(#relatedVideoCard),
-        #sliderVideo[data-e2e="feed-active-video"] #videoSideCard:has(#relatedVideoCard),
-        #slideMode[data-e2e="feed-active-video"] #videoSideCard:has(#relatedVideoCard){
-          width: 100%;
-          height: var(--comment-height);
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: rgba(0, 0, 0, 0.9);
-          transition: height .15s linear !important;
-          position: absolute;
-        }
-      }
-		`),
-      addStyle(splitCSS),
-    ];
-
-    const lockFn = new utils.LockFunction(async () => {
-      // 检测评论是否已关闭/已隐藏
-      if (DouYinUtils.isVerticalScreen()) {
-        return;
-      }
-      const $comment = $('[data-e2e="feed-active-video"] #videoSideCard');
-      if (!$comment) {
-        return;
-      }
-      const width = DOMUtils.width($comment, true);
-      const opacity = DOMUtils.css($comment, "opacity");
-      if (width && opacity != "0") {
-        // 可见
-        $comment.setAttribute("data-comment-show", "");
-      } else {
-        // 不可见
-        $comment.removeAttribute("data-comment-show");
-      }
-    }, 100);
-    const observer = utils.mutationObserver(document, {
-      config: {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ["class"],
-      },
-      immediate: true,
-      callback: (mutations) => {
-        lockFn.run(mutations);
-      },
-    });
-
-    const visibilityChangeListener = DOMUtils.on(document, "visibilitychange", () => {
-      if (!document.hidden) lockFn.run();
-    });
-    const pageChangeListener = DOMUtils.on(
-      window,
-      ["resize", "pageshow"],
-      () => {
-        lockFn.run();
-      },
-      {
-        passive: true,
-      }
-    );
-
-    results.push(() => {
-      observer.disconnect();
-      visibilityChangeListener.off();
-      pageChangeListener.off();
-    });
-    return results;
   },
   /**
    * 手势返回关闭评论区
