@@ -35,7 +35,7 @@ export const DouYinVideoPortraitCommentSplit = {
     const styles = [addStyle(splitCSS), addStyle(pickerCSS)];
     const pickers = new Map<HTMLElement, ReturnType<typeof createLayoutPicker>>();
     const prewarmedRoots = new Map<HTMLElement, { kind: PanelKind; since: number }>();
-    const panelStateCache = new WeakMap<HTMLElement, { signature: string; kind: PanelKind | null }>();
+    const panelStateCache = new WeakMap<HTMLElement, { signature: string; kind: PanelKind }>();
 
     // 忽略测量及布局调整自身产生的 class 变更，仍监听抖音对原生 class 的修改。
     const nativeClassNames = (classes: string) =>
@@ -55,12 +55,15 @@ export const DouYinVideoPortraitCommentSplit = {
       const rootRect = $root.getBoundingClientRect();
       const visibleHeight = Math.min(panelRect.bottom, rootRect.bottom) - Math.max(panelRect.top, rootRect.top);
       const visibleWidth = Math.min(panelRect.right, rootRect.right) - Math.max(panelRect.left, rootRect.left);
+      // 信息流的评论侧栏会先贴在播放器右边缘，再随原生布局向左移动。
+      const adjacentFeedComment =
+        $panel.id === "videoSideCard" && $panel.parentElement === $root && Math.abs(panelRect.left - rootRect.right) <= 2;
       return (
         panelRect.width >= 100 &&
         panelRect.height >= 100 &&
         rootRect.height >= 150 &&
         visibleHeight >= 80 &&
-        visibleWidth >= 80
+        (visibleWidth >= 80 || adjacentFeedComment)
       );
     };
 
@@ -102,7 +105,9 @@ export const DouYinVideoPortraitCommentSplit = {
         $root.classList.add(...applied);
         $root.classList.remove(MEASURING_CLASS);
       }
-      panelStateCache.set($root, { signature, kind });
+      // 评论宽度和位移可能在 DOM 标记不变时才稳定。允许后续检查重试未打开的判断。
+      if (kind) panelStateCache.set($root, { signature, kind });
+      else panelStateCache.delete($root);
       return kind;
     };
 
