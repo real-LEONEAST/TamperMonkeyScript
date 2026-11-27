@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         小红书优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.24
+// @version      2026.11.27.2
 // @author       WhiteSevs
 // @description  屏蔽登录弹窗、屏蔽广告、优化评论浏览、优化图片浏览、允许复制、禁止唤醒App、禁止唤醒弹窗、修复正确跳转等
 // @license      GPL-3.0-only
@@ -31,6 +31,8 @@
 // @grant        unsafeWindow
 // @grant        window.onurlchange
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/xhs-portrait/scripts-vite/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96/dist/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96.meta.js
+// @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/xhs-portrait/scripts-vite/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96/dist/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96.user.js
 // ==/UserScript==
 
 (function (qmsg, _whitesev_domutils, _whitesev_pops, _whitesev_utils, viewerjs) {
@@ -5989,6 +5991,10 @@
         return XHS.openBlankArticle();
       });
       XHSBlock.init();
+      Panel.execMenuOnce("pc-xhs-article-portrait-layout", () => {
+        log.info("PC端笔记竖屏自适应布局");
+        return addStyle("/* PC 竖屏：按视口方向判断，不受原生 960px 横向布局阈值限制。 */\n@media (orientation: portrait) {\n  .outer-link-container {\n    width: 100% !important;\n  }\n\n  :root #noteContainer {\n    box-sizing: border-box;\n    display: flex !important;\n    flex-direction: column !important;\n    align-items: stretch !important;\n    width: 94vw !important;\n    max-width: 1280px !important;\n    min-width: 0 !important;\n    height: 88vh !important;\n    max-height: calc(100vh - 72px) !important;\n    min-height: 0 !important;\n  }\n\n  :root #noteContainer .media-container {\n    box-sizing: border-box;\n    flex: 0 0 55% !important;\n    width: 100% !important;\n    max-width: 100% !important;\n    min-width: 0 !important;\n    height: 55% !important;\n    max-height: 55% !important;\n    min-height: 0 !important;\n  }\n\n  :root #noteContainer .media-container video,\n  :root #noteContainer .media-container .swiper-slide img {\n    max-width: 100% !important;\n    max-height: 100% !important;\n    object-fit: contain !important;\n  }\n\n  :root #noteContainer .interaction-container {\n    box-sizing: border-box;\n    display: flex !important;\n    flex-direction: column !important;\n    flex: 1 1 0 !important;\n    width: 100% !important;\n    max-width: 100% !important;\n    min-width: 0 !important;\n    height: auto !important;\n    min-height: 0 !important;\n    border-left: 0 !important;\n    overflow-y: auto !important;\n    overscroll-behavior-y: contain;\n  }\n\n  :root #noteContainer .note-scroller {\n    flex: 1 1 auto !important;\n    height: auto !important;\n    min-height: 0 !important;\n    overflow-y: auto !important;\n    overscroll-behavior-y: contain;\n  }\n}\n");
+      });
       Panel.execMenuOnce("pc-xhs-article-showPubsliushTime", () => {
         return XHSArticle.transformPublishTime();
       });
@@ -6453,6 +6459,19 @@
         type: "container",
         text: "视频播放",
         views: getVideoSettingViews(),
+      },
+      {
+        text: "笔记竖屏适配",
+        type: "container",
+        views: [
+          UISwitch(
+            "启用",
+            "pc-xhs-article-portrait-layout",
+            false,
+            void 0,
+            "仅PC端竖屏视口生效：图片/视频置于上方，正文及评论置于下方并独立滚动；横屏恢复原布局。竖屏时优先于笔记宽屏的尺寸设置。"
+          ),
+        ],
       },
       {
         text: "笔记宽屏",

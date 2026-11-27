@@ -1,4 +1,4 @@
-import { DOMUtils, log, utils } from "@/env";
+import { addStyle, DOMUtils, log, utils } from "@/env";
 import { XHSHook } from "@/hook/XHSHook";
 import { XHSRouter } from "@/router/XHSRouter";
 import { Panel } from "@components/setting/panel";
@@ -8,6 +8,7 @@ import { XHSArticle } from "./article/XHSArticle";
 import { XHSArticleFilter } from "./article/XHSArticleFilter";
 import { XHSBlock } from "./XHSBlock";
 import { XHSSearch } from "./search/XHSSearch";
+import portraitNoteCSS from "./css/portrait-note.css?raw";
 
 export const XHS = {
   init() {
@@ -22,6 +23,11 @@ export const XHS = {
       return XHS.openBlankArticle();
     });
     XHSBlock.init();
+    // 全局注册一次，覆盖发现页、搜索页和用户主页中打开的笔记浮层。
+    Panel.execMenuOnce("pc-xhs-article-portrait-layout", () => {
+      log.info("PC端笔记竖屏自适应布局");
+      return addStyle(portraitNoteCSS);
+    });
     Panel.execMenuOnce("pc-xhs-article-showPubsliushTime", () => {
       return XHSArticle.transformPublishTime();
     });

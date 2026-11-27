@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         小红书优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.24
+// @version      2026.11.27.2
 // @author       WhiteSevs
 // @description  屏蔽登录弹窗、屏蔽广告、优化评论浏览、优化图片浏览、允许复制、禁止唤醒App、禁止唤醒弹窗、修复正确跳转等
 // @license      GPL-3.0-only
@@ -31,4 +31,6 @@
 // @grant        unsafeWindow
 // @grant        window.onurlchange
 // @run-at       document-start
+// @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/xhs-portrait/scripts-vite/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96/dist/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96.meta.js
+// @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/xhs-portrait/scripts-vite/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96/dist/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96.user.js
 // ==/UserScript==
