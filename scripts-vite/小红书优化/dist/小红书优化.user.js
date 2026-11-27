@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         小红书优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.27.2
+// @version      2026.11.27.3
 // @author       WhiteSevs
 // @description  屏蔽登录弹窗、屏蔽广告、优化评论浏览、优化图片浏览、允许复制、禁止唤醒App、禁止唤醒弹窗、修复正确跳转等
 // @license      GPL-3.0-only
@@ -35,6 +35,33 @@
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/xhs-portrait/scripts-vite/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96/dist/%E5%B0%8F%E7%BA%A2%E4%B9%A6%E4%BC%98%E5%8C%96.user.js
 // ==/UserScript==
 
+// Fork diagnostic bootstrap: registered before the application initializes.
+(() => {
+  if (window.top !== window.self) return;
+  let stage = "脚本入口已执行，尚未初始化";
+  let errorText = "";
+  if (typeof GM_registerMenuCommand === "function") {
+    GM_registerMenuCommand("🔧 小红书启动诊断", () => {
+      const report = [
+        "小红书优化 2026.11.27.3",
+        "运行阶段：" + stage,
+        "当前页面：" + location.href,
+        "依赖：" + [
+          "Qmsg=" + typeof Qmsg,
+          "DOMUtils=" + typeof DOMUtils,
+          "pops=" + typeof pops,
+          "Utils=" + typeof Utils,
+          "Viewer=" + typeof Viewer
+        ].join(" / "),
+        errorText ? "异常：" + errorText : "未捕获同步启动异常"
+      ].join("\n");
+      console.info("[小红书优化启动诊断]", report);
+      window.prompt("请复制启动诊断内容", report);
+    });
+  }
+  console.info("[小红书优化启动诊断] 2026.11.27.3 入口执行");
+  try {
+    stage = "执行脚本主体";
 (function (qmsg, _whitesev_domutils, _whitesev_pops, _whitesev_utils, viewerjs) {
   "use strict";
   var __create = Object.create;
@@ -6811,7 +6838,9 @@
   ]);
   PanelContent.addContentConfig([SettingUI_General, SettingUI_Article, SettingUI_Search]);
   PanelContent.addContentConfig([MSettingUI_General, MSettingUI_Home, MSettingUI_Notes]);
+  stage = "初始化设置面板并注册菜单";
   Panel.init();
+  stage = "设置面板已初始化，检查设备模式";
   var isMobile = utils.isPhone();
   var CHANGE_ENV_SET_KEY = "change_env_set";
   var chooseMode = _GM_getValue(CHANGE_ENV_SET_KEY);
@@ -6865,9 +6894,17 @@
       XHS.init();
     }
   };
+  stage = "执行 PC/移动端功能初始化";
   start();
   window.addEventListener("urlchange", () => {
     log.info("Router change!!!");
     start();
   });
 })(Qmsg, DOMUtils, pops, Utils, Viewer);
+    stage = "脚本主体同步执行完成";
+  } catch (error) {
+    errorText = error && error.stack ? String(error.stack) : String(error);
+    console.error("[小红书优化启动诊断] 启动失败，阶段：" + stage, error);
+  }
+})();
+
