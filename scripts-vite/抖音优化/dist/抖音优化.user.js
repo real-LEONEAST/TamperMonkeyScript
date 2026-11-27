@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         抖音优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.20.9
+// @version      2026.11.27.10
 // @updateURL    https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.meta.js
 // @downloadURL  https://raw.githubusercontent.com/real-LEONEAST/TamperMonkeyScript/release/scripts-vite/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96/dist/%E6%8A%96%E9%9F%B3%E4%BC%98%E5%8C%96.user.js
 // @author       WhiteSevs
@@ -1173,8 +1173,7 @@
         };
         if (__event__) {
           const event = __event__;
-          const eventTypeItem = event.type;
-          dispatchEvent(event, eventTypeItem);
+          dispatchEvent(event, event.type);
         } else
           eventTypeList.forEach((eventTypeItem) => {
             const event = new Event(eventTypeItem);
@@ -1680,11 +1679,7 @@
       if (typeof property === "string") {
         if (value == null) return that.windowApi.globalThis.getComputedStyle($el).getPropertyValue(property);
         else setStyleProperty(property, value);
-      } else if (typeof property === "object")
-        for (const prop in property) {
-          const value = property[prop];
-          setStyleProperty(prop, value);
-        }
+      } else if (typeof property === "object") for (const prop in property) setStyleProperty(prop, property[prop]);
       else throw new TypeError("property must be string or object");
     }
     text($el, text) {
@@ -4099,8 +4094,7 @@
         };
         if (__event__) {
           const event = __event__;
-          const eventTypeItem = event.type;
-          dispatchEvent(event, eventTypeItem);
+          dispatchEvent(event, event.type);
         } else
           eventTypeList.forEach((eventTypeItem) => {
             const event = new Event(eventTypeItem);
@@ -4525,11 +4519,7 @@
       if (typeof property === "string") {
         if (value == null) return PopsCore.globalThis.getComputedStyle($el).getPropertyValue(property);
         else setStyleProperty(property, value);
-      } else if (typeof property === "object")
-        for (const prop in property) {
-          const value = property[prop];
-          setStyleProperty(prop, value);
-        }
+      } else if (typeof property === "object") for (const prop in property) setStyleProperty(prop, property[prop]);
       else throw new TypeError("property must be string or object");
     }
     createElement(tagName, property, attributes) {
@@ -6621,8 +6611,8 @@
                       fileName: "内部-测试文件.zip",
                       fileSize: 1025e3,
                       fileType: "zip",
-                      createTime: 1702038410440,
-                      latestTime: 1702039602126,
+                      createTime: 0x18c496514c8,
+                      latestTime: 0x18c497743ce,
                       isFolder: false,
                       index: 1,
                       clickEvent(event, config) {
@@ -6644,8 +6634,8 @@
           fileName: "测试文件.apk",
           fileSize: 30125682,
           fileType: "apk",
-          createTime: 1702036410440,
-          latestTime: 1702039410440,
+          createTime: 0x18c49469048,
+          latestTime: 0x18c49745708,
           isFolder: false,
           index: 1,
           clickEvent() {
@@ -12772,8 +12762,7 @@
         },
         removeInputChangeEvent() {
           for (let index = 0; index < SearchSuggestion.$evt.offInputChangeEvtHandler.length; index++) {
-            const handler = SearchSuggestion.$evt.offInputChangeEvtHandler[index];
-            handler();
+            (0, SearchSuggestion.$evt.offInputChangeEvtHandler[index])();
             SearchSuggestion.$evt.offInputChangeEvtHandler.splice(index, 1);
             index--;
           }
@@ -13043,7 +13032,7 @@
       return nextNumber;
     };
   };
-  var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER === void 0 ? 9007199254740991 : Number.MAX_SAFE_INTEGER;
+  var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER === void 0 ? 0x1fffffffffffff : Number.MAX_SAFE_INTEGER;
   var TWO_TO_THE_POWER_OF_TWENTY_NINE = 536870912;
   var TWO_TO_THE_POWER_OF_THIRTY = TWO_TO_THE_POWER_OF_TWENTY_NINE * 2;
   var createGenerateUniqueNumber = (cache, lastNumberWeakMap) => {
@@ -13280,7 +13269,7 @@
   var clearTimeout$1 = (timerId) => loadOrReturnBroker().clearTimeout(timerId);
   var setInterval$1 = (...args) => loadOrReturnBroker().setInterval(...args);
   var setTimeout$1 = (...args) => loadOrReturnBroker().setTimeout(...args);
-  var version$1 = "2.15.2";
+  var version$1 = "2.15.4";
   var ajaxHooker = function () {
     const version = "1.4.8";
     const hookInst = {
@@ -13674,8 +13663,8 @@
             let val = response[key];
             if (key === "json" && typeof val === "object") val = catchError(JSON.stringify.bind(JSON), val);
             const res = new Response(val, {
-              status: 200,
-              statusText: "OK",
+              status: response.status || 200,
+              statusText: response.statusText || "OK",
             });
             defineProp(res, "type", () => "basic");
             defineProp(res, "url", () => request.url);
@@ -16436,6 +16425,7 @@
     lock;
     unlock;
     run;
+    idleRun;
     isLock;
     constructor(callback, context, delayTime) {
       const that = this;
@@ -16457,8 +16447,22 @@
       this.run = async function (...args) {
         if (that.isLock()) return;
         that.lock();
-        await that.#callback.apply(this, args);
+        const result = await that.#callback.apply(this, args);
         that.unlock();
+        return result;
+      };
+      this.idleRun = async function (...args) {
+        if (that.isLock()) return;
+        return await new Promise((resolve) => {
+          if (typeof requestIdleCallback == "function")
+            requestIdleCallback(() => {
+              resolve(that.run(...args));
+            });
+          else
+            setTimeout(() => {
+              resolve(that.run(...args));
+            }, 0);
+        });
       };
     }
   };
@@ -18971,13 +18975,8 @@
       let isAsync = args[args.length - 1];
       if (typeof isAsync === "boolean") args.splice(args.length - 1, 1);
       else isAsync = false;
-      if (isAsync) {
-        const AsyncFunctionConstructor = Object.getPrototypeOf(async function () {}).constructor;
-        return new AsyncFunctionConstructor(...args);
-      } else {
-        const FunctionConstructor = Object.getPrototypeOf(function () {}).constructor;
-        return new FunctionConstructor(...args);
-      }
+      if (isAsync) return new (Object.getPrototypeOf(async function () {}).constructor)(...args);
+      else return new (Object.getPrototypeOf(function () {}).constructor)(...args);
     }
     hasWorkerCSP(timeout = 1500) {
       return new Promise((resolve) => {
@@ -20368,7 +20367,7 @@
     },
     formatTimeStamp(time, endTime) {
       if (typeof time === "number") {
-        if (time < 0xe8d4a51000) {
+        if (time < 1e12) {
           const padZeroLength = String(Date.now()).length - String(time).length;
           time = time * Math.pow(10, padZeroLength);
         }
@@ -20566,8 +20565,7 @@
             if (typeof _GM_setValues === "function") _GM_setValues(data);
             else
               Object.keys(data).forEach((key) => {
-                const value = data[key];
-                _GM_setValue(key, value);
+                _GM_setValue(key, data[key]);
               });
             qmsg.success(translateCallback("配置导入完毕"));
             importEndCallBack?.();
@@ -20974,8 +20972,7 @@
     };
     execDestoryFnAndClear = () => {
       for (let index = this.data.destoryFnList.length - 1; index >= 0; index--) {
-        const destoryFnItem = this.data.destoryFnList[index];
-        destoryFnItem();
+        (0, this.data.destoryFnList[index])();
         this.data.destoryFnList.splice(index, 1);
       }
     };
@@ -21022,8 +21019,7 @@
     destory() {
       this.cacheData = null;
       for (let index = this.callbacks.length - 1; index >= 0; index--) {
-        const cb = this.callbacks[index];
-        cb();
+        (0, this.callbacks[index])();
         this.callbacks.splice(index, 1);
       }
     }
@@ -23674,8 +23670,7 @@
         const fn = args[0];
         const timeout = args[1];
         for (let index = 0; index < that.$data.setTimeout.length; index++) {
-          const item = that.$data.setTimeout[index];
-          const result = item(fn, timeout);
+          const result = (0, that.$data.setTimeout[index])(fn, timeout);
           if (typeof result === "boolean" && !result) return;
           if (typeof result === "function") {
             args[0] = result;
@@ -23695,8 +23690,7 @@
         const fn = args[0];
         const timeout = args[1];
         for (let index = 0; index < that.$data.setInterval.length; index++) {
-          const item = that.$data.setInterval[index];
-          const result = item(fn, timeout);
+          const result = (0, that.$data.setInterval[index])(fn, timeout);
           if (typeof result === "boolean" && !result) return;
           if (typeof result === "function") {
             args[0] = result;
@@ -23795,8 +23789,7 @@
         const key = args[1];
         const attributes = args[2];
         for (let index = 0; index < that.$data.defineProperty.length; index++) {
-          const item = that.$data.defineProperty[index];
-          const result = item(target, key, attributes);
+          const result = (0, that.$data.defineProperty[index])(target, key, attributes);
           if (result != null) {
             args[0] = result.target;
             args[1] = result.key;
@@ -23836,8 +23829,7 @@
                 if (typeof fn === "function")
                   args[0][1][keyName] = function (...args2) {
                     const result = fn.call(this, ...args2);
-                    const exports = args2[0];
-                    args2[0] = handler(exports);
+                    args2[0] = handler(args2[0]);
                     return result;
                   };
               });
@@ -27891,7 +27883,7 @@
         data.isFollow = Boolean(authorInfo?.follow_status);
         if (typeof awemeInfoWithNetWork.create_time === "number") {
           data.createTime = awemeInfoWithNetWork.create_time;
-          if (data.createTime > 0 && data.createTime < 0xe8d4a51000) data.createTime = data.createTime * 1e3;
+          if (data.createTime > 0 && data.createTime < 1e12) data.createTime = data.createTime * 1e3;
         }
         data.isAds = [
           () => {
@@ -28147,7 +28139,7 @@
         data.isFollow = Boolean(authorInfo?.followStatus);
         if (typeof awemeInfoWithDOM.createTime === "number") {
           data.createTime = awemeInfoWithDOM.createTime;
-          if (data.createTime > 0 && data.createTime < 0xe8d4a51000) data.createTime = data.createTime * 1e3;
+          if (data.createTime > 0 && data.createTime < 1e12) data.createTime = data.createTime * 1e3;
         }
         data.isAds = [
           () => {
@@ -29281,10 +29273,8 @@
                 addDynamicElementItem();
               });
               if (Array.isArray(data.dynamicData))
-                for (let index = 0; index < data.dynamicData.length; index++) {
-                  const moreDataItem = data.dynamicData[index];
-                  addDynamicElementItem(moreDataItem);
-                }
+                for (let index = 0; index < data.dynamicData.length; index++)
+                  addDynamicElementItem(data.dynamicData[index]);
               $fragment.append($enable, $name, $scope, ...createDynamicItemNode(data.data), $dynamicContainer);
               return $fragment;
             },
@@ -29729,12 +29719,16 @@
         const rootRect = $root.getBoundingClientRect();
         const visibleHeight = Math.min(panelRect.bottom, rootRect.bottom) - Math.max(panelRect.top, rootRect.top);
         const visibleWidth = Math.min(panelRect.right, rootRect.right) - Math.max(panelRect.left, rootRect.left);
+        const adjacentFeedComment =
+          $panel.id === "videoSideCard" &&
+          $panel.parentElement === $root &&
+          Math.abs(panelRect.left - rootRect.right) <= 2;
         return (
           panelRect.width >= 100 &&
           panelRect.height >= 100 &&
           rootRect.height >= 150 &&
           visibleHeight >= 80 &&
-          visibleWidth >= 80
+          (visibleWidth >= 80 || adjacentFeedComment)
         );
       };
       const getOpenedSidePanel = ($root, preferred) => {
@@ -29766,10 +29760,12 @@
           $root.classList.add(...applied);
           $root.classList.remove(MEASURING_CLASS);
         }
-        panelStateCache.set($root, {
-          signature,
-          kind,
-        });
+        if (kind)
+          panelStateCache.set($root, {
+            signature,
+            kind,
+          });
+        else panelStateCache.delete($root);
         return kind;
       };
       const isSearchPage = () =>
