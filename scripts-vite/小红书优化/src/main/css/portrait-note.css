@@ -1,0 +1,60 @@
+/* PC 竖屏：按视口方向判断，不受原生 960px 横向布局阈值限制。 */
+@media (orientation: portrait) {
+  .outer-link-container {
+    width: 100% !important;
+  }
+
+  :root #noteContainer {
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 94vw !important;
+    max-width: 1280px !important;
+    min-width: 0 !important;
+    height: 88vh !important;
+    max-height: calc(100vh - 72px) !important;
+    min-height: 0 !important;
+  }
+
+  :root #noteContainer .media-container {
+    box-sizing: border-box;
+    flex: 0 0 55% !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: 55% !important;
+    max-height: 55% !important;
+    min-height: 0 !important;
+  }
+
+  :root #noteContainer .media-container video,
+  :root #noteContainer .media-container .swiper-slide img {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  :root #noteContainer .interaction-container {
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-left: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+  }
+
+  :root #noteContainer .note-scroller {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+  }
+}

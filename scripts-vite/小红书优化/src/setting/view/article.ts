@@ -21,6 +21,19 @@ export const SettingUI_Article: PopsPanelContentConfig = {
       ],
     },
     {
+      text: "笔记竖屏适配",
+      type: "container",
+      views: [
+        UISwitch(
+          "启用",
+          "pc-xhs-article-portrait-layout",
+          false,
+          void 0,
+          "仅PC端竖屏视口生效：图片/视频置于上方，正文及评论置于下方并独立滚动；横屏恢复原布局。竖屏时优先于笔记宽屏的尺寸设置。"
+        ),
+      ],
+    },
+    {
       text: "笔记宽屏",
       type: "container",
       views: [
