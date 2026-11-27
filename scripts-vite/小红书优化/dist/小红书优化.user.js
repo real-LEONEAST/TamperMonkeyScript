@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         小红书优化
 // @namespace    https://github.com/WhiteSevs/TamperMonkeyScript
-// @version      2026.11.27.3
+// @version      2026.11.27.4
 // @author       WhiteSevs
 // @description  屏蔽登录弹窗、屏蔽广告、优化评论浏览、优化图片浏览、允许复制、禁止唤醒App、禁止唤醒弹窗、修复正确跳转等
 // @license      GPL-3.0-only
@@ -43,7 +43,7 @@
   if (typeof GM_registerMenuCommand === "function") {
     GM_registerMenuCommand("🔧 小红书启动诊断", () => {
       const report = [
-        "小红书优化 2026.11.27.3",
+        "小红书优化 2026.11.27.4",
         "运行阶段：" + stage,
         "当前页面：" + location.href,
         "依赖：" + [
@@ -59,7 +59,7 @@
       window.prompt("请复制启动诊断内容", report);
     });
   }
-  console.info("[小红书优化启动诊断] 2026.11.27.3 入口执行");
+  console.info("[小红书优化启动诊断] 2026.11.27.4 入口执行");
   try {
     stage = "执行脚本主体";
 (function (qmsg, _whitesev_domutils, _whitesev_pops, _whitesev_utils, viewerjs) {
@@ -6020,7 +6020,7 @@
       XHSBlock.init();
       Panel.execMenuOnce("pc-xhs-article-portrait-layout", () => {
         log.info("PC端笔记竖屏自适应布局");
-        return addStyle("/* PC 竖屏：按视口方向判断，不受原生 960px 横向布局阈值限制。 */\n@media (orientation: portrait) {\n  .outer-link-container {\n    width: 100% !important;\n  }\n\n  :root #noteContainer {\n    box-sizing: border-box;\n    display: flex !important;\n    flex-direction: column !important;\n    align-items: stretch !important;\n    width: 94vw !important;\n    max-width: 1280px !important;\n    min-width: 0 !important;\n    height: 88vh !important;\n    max-height: calc(100vh - 72px) !important;\n    min-height: 0 !important;\n  }\n\n  :root #noteContainer .media-container {\n    box-sizing: border-box;\n    flex: 0 0 55% !important;\n    width: 100% !important;\n    max-width: 100% !important;\n    min-width: 0 !important;\n    height: 55% !important;\n    max-height: 55% !important;\n    min-height: 0 !important;\n  }\n\n  :root #noteContainer .media-container video,\n  :root #noteContainer .media-container .swiper-slide img {\n    max-width: 100% !important;\n    max-height: 100% !important;\n    object-fit: contain !important;\n  }\n\n  :root #noteContainer .interaction-container {\n    box-sizing: border-box;\n    display: flex !important;\n    flex-direction: column !important;\n    flex: 1 1 0 !important;\n    width: 100% !important;\n    max-width: 100% !important;\n    min-width: 0 !important;\n    height: auto !important;\n    min-height: 0 !important;\n    border-left: 0 !important;\n    overflow-y: auto !important;\n    overscroll-behavior-y: contain;\n  }\n\n  :root #noteContainer .note-scroller {\n    flex: 1 1 auto !important;\n    height: auto !important;\n    min-height: 0 !important;\n    overflow-y: auto !important;\n    overscroll-behavior-y: contain;\n  }\n}\n");
+        return addStyle("/* PC 竖屏：按视口方向判断，不受原生 960px 横向布局阈值限制。 */\n@media (orientation: portrait) {\n  .outer-link-container {\n    width: 100% !important;\n  }\n\n  :root #noteContainer {\n    box-sizing: border-box;\n    display: flex !important;\n    flex-direction: column !important;\n    align-items: stretch !important;\n    width: 94vw !important;\n    max-width: 1280px !important;\n    min-width: 0 !important;\n    height: 94vh !important;\n    max-height: calc(100vh - 40px) !important;\n    min-height: 0 !important;\n  }\n\n  /* 弹层的原生 left/top/transform 根据横向尺寸计算；改宽后必须重新居中。\n     独立打开的笔记页仍保留原本的文档流定位。 */\n  :root .note-detail-mask #noteContainer {\n    position: fixed !important;\n    top: 0 !important;\n    right: 0 !important;\n    bottom: 0 !important;\n    left: 0 !important;\n    margin: auto !important;\n    transform: none !important;\n    translate: none !important;\n  }\n\n  :root .outer-link-container #noteContainer {\n    width: 94% !important;\n    margin-inline: auto !important;\n  }\n\n  :root #noteContainer .media-container {\n    box-sizing: border-box;\n    flex: 0 0 58% !important;\n    width: 100% !important;\n    max-width: 100% !important;\n    min-width: 0 !important;\n    height: 58% !important;\n    max-height: 58% !important;\n    min-height: 0 !important;\n  }\n\n  :root #noteContainer .media-container video,\n  :root #noteContainer .media-container .swiper-slide img {\n    max-width: 100% !important;\n    max-height: 100% !important;\n    object-fit: contain !important;\n  }\n\n  :root #noteContainer .interaction-container {\n    box-sizing: border-box;\n    display: flex !important;\n    flex-direction: column !important;\n    flex: 1 1 0 !important;\n    width: 100% !important;\n    max-width: 100% !important;\n    min-width: 0 !important;\n    height: auto !important;\n    min-height: 0 !important;\n    border-left: 0 !important;\n    overflow-x: hidden !important;\n    overflow-y: auto !important;\n    overscroll-behavior-y: contain;\n  }\n\n  :root #noteContainer .note-scroller {\n    flex: 1 1 auto !important;\n    height: auto !important;\n    min-height: 0 !important;\n    overflow-y: auto !important;\n    overscroll-behavior-y: contain;\n  }\n}\n");
       });
       Panel.execMenuOnce("pc-xhs-article-showPubsliushTime", () => {
         return XHSArticle.transformPublishTime();
